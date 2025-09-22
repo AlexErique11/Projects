@@ -1,0 +1,1 @@
+echo "ChessAnalyser/ml_training/data/*.zst" >> .gitignore
