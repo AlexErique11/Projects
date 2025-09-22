@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Copyright (c) 2015, 2019, Gluon and/or its affiliates.
+  All rights reserved. Use is subject to license terms.
+
+  This file is available and licensed under the following license:
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  - Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  - Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in
+    the documentation and/or other materials provided with the distribution.
+  - Neither the name of Oracle Corporation nor the names of its
+    contributors may be used to endorse or promote products derived
+    from this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.Group?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.web.WebView?>
+
+<VBox fx:id="rootVBox" prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.Variables">
+    <children>
+
+        <HBox alignment="TOP_RIGHT" spacing="10" />
+
+        <SplitPane dividerPositions="0.2566815144766147, 0.7488864142538976" focusTraversable="true" prefHeight="599.0" prefWidth="900.0" VBox.vgrow="ALWAYS">
+            <items>
+                <AnchorPane fx:id="rootPane" onKeyPressed="#escapeButtonSearch" prefHeight="605.0" prefWidth="222.0">
+                    <children>
+                        <TableView fx:id="noteContainer" layoutY="52.0" prefHeight="496.0" prefWidth="228.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                            <columns>
+                                <TableColumn fx:id="notesColumn" minWidth="-Infinity" prefWidth="227.0" text="%column.notes" />
+
+                            </columns>
+                        </TableView>
+                        <Button fx:id="arrowRight" alignment="CENTER" contentDisplay="CENTER" layoutX="190.0" layoutY="553.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#arrowRight" prefHeight="33.0" prefWidth="33.0" text="⮫" textAlignment="CENTER">
+                            <font>
+                                <Font name="Wide Latin" size="14.0" />
+                            </font>
+                        </Button>
+                        <Button fx:id="arrowDown" alignment="CENTER" contentDisplay="CENTER" layoutX="109.0" layoutY="553.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#arrowDown" prefHeight="33.0" prefWidth="33.0" text="⮟" textAlignment="CENTER">
+                            <font>
+                                <Font name="Wide Latin" size="14.0" />
+                            </font>
+                        </Button>
+                        <Button fx:id="arrowUp" alignment="CENTER" contentDisplay="CENTER" layoutX="76.0" layoutY="553.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#arrowUp" prefHeight="33.0" prefWidth="33.0" text="⮝" textAlignment="CENTER">
+                            <font>
+                                <Font name="Wide Latin" size="14.0" />
+                            </font>
+                        </Button>
+                        <Button fx:id="clickDelNote" alignment="CENTER" contentDisplay="CENTER" layoutX="37.0" layoutY="553.0" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#clickDelNote" prefHeight="33.0" prefWidth="33.0" text="🗑" textAlignment="CENTER">
+                            <font>
+                                <Font name="Bauhaus 93" size="15.0" />
+                            </font>
+                        </Button>
+                        <Button fx:id="newNoteButton" alignment="CENTER" contentDisplay="CENTER" layoutX="4.0" layoutY="553.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#clickNewNote" prefHeight="33.0" prefWidth="33.0" text="📝" textAlignment="CENTER">
+                            <font>
+                                <Font name="Arial Bold" size="13.0" />
+                            </font>
+                        </Button>
+                        <TextField fx:id="searchField" layoutY="26.0" prefHeight="25.0" prefWidth="227.0" promptText="%search.keyword" />
+                        <Label layoutX="208.0" layoutY="26.0" prefHeight="25.0" prefWidth="19.0" style="-fx-background-color: transparent;" text="🔍" />
+                        <Pane prefHeight="26.0" prefWidth="227.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                            <children>
+                                <MenuButton fx:id="collectionMenu" mnemonicParsing="false" onAction="#refreshCollections" onMouseClicked="#refreshCollections" prefHeight="26.0" prefWidth="194.0" text="%menu.collection.all">
+                                    <items>
+                                        <MenuItem mnemonicParsing="false" text="ALL" />
+                                    </items>
+                                </MenuButton>
+                                <Button fx:id="collectionSettingsButton" layoutX="194.0" mnemonicParsing="false" onAction="#clickCollectionSettings" prefHeight="26.0" prefWidth="33.0" text="⚙️" />
+                            </children>
+                        </Pane>
+                        <Button fx:id="Undo_Button" alignment="CENTER" contentDisplay="CENTER" layoutX="148.0" layoutY="553.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#undoClick" prefHeight="33.0" prefWidth="42.0" text="⎌" textAlignment="CENTER">
+                            <font>
+                                <Font name="Segoe UI Italic" size="20.0" />
+                            </font>
+                        </Button>
+                    </children>
+                </AnchorPane>
+                <ScrollPane prefWidth="437.0">
+                    <content>
+                        <AnchorPane id="Content" minHeight="-1.0" minWidth="-1.0" prefHeight="476.0" prefWidth="442.0">
+                            <children>
+                                <Group layoutY="-1.0" />
+                                <TextArea fx:id="descriptionTextBox" layoutX="-1.0" layoutY="139.0" prefHeight="435.0" prefWidth="426.0" promptText="%description.text" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="240.0" />
+                                <Label fx:id="titleLabel" alignment="CENTER" layoutX="5.0" layoutY="83.0" prefHeight="50.0" prefWidth="324.0" textAlignment="CENTER">
+                                    <font>
+                                        <Font name="Book Antiqua Bold" size="37.0" />
+                                    </font>
+                                </Label>
+                                <TextField fx:id="editTitleField" layoutY="55.0" onAction="#handleEditTextFieldAction" prefHeight="39.0" prefWidth="381.0" visible="false" />
+
+                                <Pane layoutX="-234.0" layoutY="-1.0" prefHeight="17.0" prefWidth="900.0" />
+                                <ListView fx:id="embeddedFilesList" layoutX="8.0" layoutY="474.0" prefHeight="96.0" prefWidth="374.0" />
+                                <Button fx:id="embedFileButton" layoutX="389.0" layoutY="509.0" mnemonicParsing="false" onAction="#embedFile" text="📎" />
+                                <Button fx:id="toggleFilesButton" layoutX="389.0" layoutY="541.0" mnemonicParsing="false" text="📂" />
+
+                                <CheckBox fx:id="searchInAllCheckbox" layoutX="5.0" layoutY="19.0" mnemonicParsing="false" text="%checkbox.search.all" visible="false" />
+                        <MenuButton fx:id="colorButton" layoutX="8.0" layoutY="7.0" mnemonicParsing="false" prefHeight="25.0" prefWidth="52.0" text="🎨">
+                          <items>
+                            <MenuItem mnemonicParsing="false" text="Action 1" />
+                            <MenuItem mnemonicParsing="false" text="Action 2" />
+                          </items>
+                        </MenuButton>
+
+                                  <Label fx:id="filterText" contentDisplay="BOTTOM" layoutX="15.0" layoutY="43.0" prefHeight="40.0" prefWidth="91.0" text="%label.filter" wrapText="true" />
+
+                                  <!-- Clear Tags Button (always visible) -->
+                                  <Button fx:id="clearTagsButton" layoutX="320.0" layoutY="94.0" mnemonicParsing="false" onAction="#clearAllTags" prefHeight="43.0" prefWidth="111.0" style="-fx-background-color: transparent;" text="%button.clear.tags" underline="true" />
+                                <HBox layoutX="62.0" layoutY="10.0" prefHeight="46.0" prefWidth="282.0" spacing="10.0">
+                           <children>
+                              <Label fx:id="statusBar" alignment="CENTER" prefHeight="22.0" prefWidth="286.0" />
+                           </children>
+                                </HBox>
+
+                                              <!-- Scrollable area for tag ComboBoxes -->
+                                  <ScrollPane fitToHeight="true" fitToWidth="false" hbarPolicy="ALWAYS" layoutX="115.0" layoutY="43.0" prefHeight="40.0" prefWidth="316.0">
+                                      <content>
+                                          <HBox fx:id="tagContainer" spacing="5.0" />
+                                      </content>
+                                  </ScrollPane>
+                           <MenuButton fx:id="languageMenu" layoutX="344.0" layoutY="3.0" prefHeight="33.0" prefWidth="87.0" text="%menu.language">
+                               <items>
+                                   <MenuItem onAction="#switchToEnglish" text="English">
+                                       <graphic>
+                                           <ImageView fitHeight="20.0" fitWidth="30.0" pickOnBounds="true" preserveRatio="true">
+                                               <image>
+                                                   <Image url="@/flags/english.png" />
+                                               </image>
+                                           </ImageView>
+                                       </graphic>
+                                   </MenuItem>
+                                   <MenuItem onAction="#switchToDutch" text="Nederlands">
+                                       <graphic>
+                                           <ImageView fitHeight="20.0" fitWidth="30.0" pickOnBounds="true" preserveRatio="true">
+                                               <image>
+                                                   <Image url="@/flags/dutch.png" />
+                                               </image>
+                                           </ImageView>
+                                       </graphic>
+                                   </MenuItem>
+                                   <MenuItem onAction="#switchToGerman" text="Deutsch">
+                                       <graphic>
+                                           <ImageView fitHeight="20.0" fitWidth="30.0" pickOnBounds="true" preserveRatio="true">
+                                               <image>
+                                                   <Image url="@/flags/german.png" />
+                                               </image>
+                                           </ImageView>
+                                       </graphic>
+                                   </MenuItem>
+                               </items>
+                           </MenuButton>
+                            </children>
+                        </AnchorPane>
+                    </content>
+                </ScrollPane>
+                <AnchorPane>
+                    <children>
+                        <WebView fx:id="htmlPreview" layoutY="23.0" prefHeight="570.0" prefWidth="222.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                    </children>
+                </AnchorPane>
+            </items>
+        </SplitPane>
+        <HBox id="HBox" alignment="CENTER_LEFT" prefHeight="0.0" prefWidth="900.0" spacing="5.0" VBox.vgrow="NEVER">
+            <padding>
+                <Insets bottom="3.0" left="3.0" right="3.0" top="3.0" />
+            </padding>
+        </HBox>
+    </children>
+</VBox>

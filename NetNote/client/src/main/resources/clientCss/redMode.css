@@ -1,0 +1,151 @@
+.root {
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+}
+
+.combo-box{
+    -fx-border-color: #886b05;
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+}
+
+.combo-box-popup {
+    -fx-background-color: #ef0606;
+    -fx-border-color: #886b05;
+}
+
+.button{
+    -fx-background-color: #680202;
+    -fx-text-fill: black;
+    -fx-border-color: #886b05;
+}
+
+.label {
+    -fx-text-fill: black;
+    -fx-background-color: #ef0606;
+    -fx-border-color: #886b05;
+}
+
+.text-field, .text-area{
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+    -fx-border-color: #886b05;
+}
+
+.list-view, .table-view {
+    -fx-background-color: #ef0606;
+    -fx-border-color: #886b05;
+    -fx-text-fill: black;
+}
+
+.list-view .list-cell, .table-view .table-cell {
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+}
+
+.list-view .list-cell:hover, .table-view .table-row-cell:hover {
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+}
+
+.table-view {
+    -fx-background-color: #ef0606;
+    -fx-border-color: #886b05;
+    -fx-text-fill: black;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: black;
+    -fx-font-weight: bold;
+}
+
+.table-view .column-header {
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+}
+
+.table-view .table-row-cell {
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+}
+
+.table-view .table-cell {
+    -fx-background-color: #680202;
+    -fx-text-fill: black;
+}
+
+.table-view .table-row-cell:selected {
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+}
+
+.menu-bar {
+    -fx-background-color: #ef0606;
+}
+
+.menu-bar .menu {
+    -fx-background-color: #ef0606;
+    -fx-text-fill: black;
+}
+
+.tab-pane {
+    -fx-background-color: #ef0606;
+    -fx-border-color: #886b05;
+}
+
+.tab-pane .tab-header-background {
+    -fx-background-color: #ef0606;
+}
+
+.tab-pane .tab {
+    -fx-text-fill: black;
+}
+
+.tab-pane .tab:hover {
+    -fx-background-color: #ef0606;
+}
+
+.text-area {
+    -fx-text-fill: black;
+    -fx-border-color: #886b05;
+}
+
+.text-area .content {
+    -fx-background-color: #ef0606;
+}
+
+.text-area .scroll-pane {
+    -fx-background: #ef0606;
+    -fx-background-color: #ef0606;
+}
+
+.anchor-pane {
+    -fx-background-color: #ef0606;
+}
+
+.split-pane {
+    -fx-background-color: #ef0606;
+    -fx-border-color: #886b05;
+    -fx-border-width: 2px;
+}
+
+.scroll-bar {
+    -fx-background-color: #ef0606;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #886b05;
+}
+
+.scroll-pane .viewport {
+    -fx-background-color: #ef0606;
+}
+
+.menu-button {
+    -fx-background-color: #680202;
+    -fx-text-fill: black;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: black;
+}

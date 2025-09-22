@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+   Checkstyle file create for note making app CSEP Team 60
+   Authors: Kaan Altıntaş, Daniel Kolev, Julian Bladergroen, Marcin Łysikowski, Maksymilian Maciejek,
+   Alexandru Popu
+-->
+
+<module name = "Checker">
+
+    <module name="SuppressionFilter">
+        <property name="file" value="suppressions.xml" />
+    </module>
+
+    <module name="TreeWalker">
+
+        <module name="SuppressionCommentFilter">
+            <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+            <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+            <property name="checkFormat" value="$1"/>
+        </module>
+
+
+        <module name="EmptyBlock">
+            <property name="severity" value="warning"/>
+            <property name="id" value="empty-block-check"/>
+        </module>
+
+        <module name="MissingJavadocMethod">
+            <property name="severity" value="warning"/>
+            <property name="scope" value="public"/>
+            <property name="minLineCount" value="0"/>
+            <property name="allowedAnnotations" value="Main"/>
+            <property name="tokens" value="METHOD_DEF, CTOR_DEF, COMPACT_CTOR_DEF"/>
+        </module>
+
+        <module name="JavadocMethod">
+            <property name="accessModifiers" value="public"/>
+            <property name="allowMissingParamTags" value="false"/>
+            <property name="allowMissingReturnTag" value="false"/>
+        </module>
+
+        <module name="MethodLength">
+            <property name="severity" value="warning"/>
+            <property name="tokens" value="METHOD_DEF, CTOR_DEF, COMPACT_CTOR_DEF"/>
+            <property name="max" value="80"/>
+        </module>
+
+        <module name="VisibilityModifier">
+            <property name="severity" value="warning"/>
+            <property name="protectedAllowed" value="true"/>
+        </module>
+
+        <module name="OuterTypeFilename">
+            <property name="severity" value="warning"/>
+        </module>
+
+        <module name="ParameterNumber">
+            <property name="severity" value="warning"/>
+            <property name="tokens" value="METHOD_DEF, CTOR_DEF"/>
+            <property name="max" value="7"/>
+        </module>
+
+        <module name="CyclomaticComplexity">
+            <property name="severity" value="warning"/>
+            <property name="switchBlockAsSingleDecisionPoint" value="true"/>
+            <property name="max" value="8"/>
+            <property name="tokens" value="LITERAL_WHILE, LITERAL_DO, LITERAL_FOR, LITERAL_IF, LITERAL_SWITCH, LITERAL_CASE, QUESTION"/>
+        </module>
+
+        <module name="Indentation">
+            <property name="severity" value="warning"/>
+        </module>
+
+
+        <module name="MemberName">
+            <property name="severity" value="warning"/>
+        </module>
+
+        <module name="MethodName">
+            <property name="severity" value="warning"/>
+        </module>
+
+        <module name="ParameterName">
+            <property name="severity" value="warning"/>
+        </module>
+
+        <module name="LocalVariableName">
+            <property name="severity" value="warning"/>
+        </module>
+
+        <module name="StaticVariableName">
+            <property name="severity" value="warning"/>
+        </module>
+
+        <module name="LambdaParameterName">
+            <property name="severity" value="warning"/>
+        </module>
+
+        <module name="TypeName">
+            <property name="severity" value="warning"/>
+        </module>
+
+    </module>
+
+    <module name="LineLength">
+        <property name="severity" value="warning"/>
+        <property name="fileExtensions" value="java"/>
+        <property name="max" value="120"/>
+        <property name="ignorePattern" value="^package.*|^import.*|a href|href|http://|https://|ftp://"/>
+    </module>
+
+</module>

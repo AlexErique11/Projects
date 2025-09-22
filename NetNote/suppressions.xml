@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD Suppressions 1.1//EN"
+        "https://checkstyle.org/dtds/suppressions_1_1.dtd">
+
+<suppressions>
+    <!-- Suppress MissingJavadocType for all files in the Interfaces folder -->
+    <suppress checks="MissingJavadocType" files=".*/Interfaces/.*\.java" />
+
+    <!-- Suppress MissingJavadocMethod for all files in the Interfaces folder -->
+    <suppress checks="MissingJavadocMethod" files=".*/Interfaces/.*\.java" />
+
+    <!-- Suppression for indentation checks on Main.java, as it was not written by us -->
+    <suppress checks="Indentation" files="Main\.java"/>
+    <suppress checks="Indentation" files="ServerUtils\.java"/>
+    <suppress checks="JavadocMethod" files="Variables\.java" />
+</suppressions>
