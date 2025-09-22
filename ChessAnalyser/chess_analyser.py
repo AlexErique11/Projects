@@ -4,7 +4,7 @@ import joblib
 from ml_training.feature_extraction import compute_features
 
 # Path to trained model
-MODEL_PATH = r"C:\Users\alexa\OneDrive\Desktop\Project chess\ml_training\human_playability_model.pkl"
+MODEL_PATH = r"C:\Users\alexa\OneDrive\Desktop\Projects\ChessAnalyser\ml_training\human_playability_model.pkl"
 STOCKFISH_PATH = r"C:\Users\alexa\Downloads\stockfish\stockfish-windows-x86-64-avx2.exe"
 
 # Load model
