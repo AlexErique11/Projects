@@ -1,1 +1,2 @@
 echo "ChessAnalyser/ml_training/data/*.zst" >> .gitignore
+ChessAnalyser/ml_training/data/lichess_data.zst
