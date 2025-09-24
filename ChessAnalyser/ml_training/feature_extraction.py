@@ -97,7 +97,9 @@ def compute_features(board, engine, depth=6):
 
     # --- Piece coordination ---
     pieces = board.piece_map()
-    connectedness = sum(1 for sq, piece in pieces.items() if board.is_attacked_by(piece.color, sq) > 1)
+    connectedness = sum(1 for sq, piece in pieces.items()
+                        if len(board.attackers(piece.color, sq)) > 1)
+    piece_coordination = connectedness / max(1, len(pieces))
     rooks = list(board.pieces(chess.ROOK, board.turn))
     rooks_connected = int(len(rooks) == 2 and board.is_attacked_by(board.turn, rooks[0]) and board.is_attacked_by(board.turn, rooks[1]))
     bishop_pair = int(len(board.pieces(chess.BISHOP, board.turn)) == 2)
@@ -109,6 +111,7 @@ def compute_features(board, engine, depth=6):
 
     # --- Engine-heavy features (all legal moves) ---
     evals_dict = evaluate_all_moves(board, engine, depth=6)
+    best_eval = max(evals_dict.values())  # or min if it's from black's POV
     evals = list(evals_dict.values())
     volatility = statistics.variance(evals) if len(evals) > 1 else 0
     volatility_score = 1 / (1 + volatility / 100)
@@ -160,7 +163,7 @@ def compute_features(board, engine, depth=6):
         "backward_pawns": backward_pawns,
         "pawn_majority": pawn_majority,
         "mobility": mobility,
-        "piece_coordination": connectedness / (len(pieces) + 1e-6),
+        "piece_coordination": piece_coordination,
         "rooks_connected": rooks_connected,
         "bishop_pair": bishop_pair,
         "overworked_defenders": overworked,
@@ -174,5 +177,5 @@ def compute_features(board, engine, depth=6):
         "passed_pawns": passed_pawns,
         "center_control": center_control,
         "top_moves": [m.uci() for m in legal_moves],  # now stores all legal moves
-        "evals": evals                                # store cached evals
+        "evals_dict": {m.uci(): v for m, v in evals_dict.items()}
     }
