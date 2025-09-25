@@ -35,7 +35,7 @@ else:
 print(f"Already processed games: {processed_games}")
 
 # --- Process new games ---
-MAX_GAMES = 10
+MAX_GAMES = 100
 game_count = 0
 positions = []
 
