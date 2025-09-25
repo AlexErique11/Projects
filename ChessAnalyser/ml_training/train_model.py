@@ -105,11 +105,14 @@ def is_human_move_good(human_move, evals_dict, threshold=50):
     human_eval = evals_dict.get(human_move, 0)
     return int(human_eval >= best_eval - threshold)
 
-
-df_features["label_move_ease"] = df_features.apply(
-    lambda row: is_human_move_good(row["human_move"], row["evals_dict"], threshold=50),
-    axis=1
-)
+#
+# df_features["label_move_ease"] = df_features.apply(
+#     lambda row: is_human_move_good(row["human_move"], row["evals_dict"], threshold=50),
+#     axis=1
+# )
+# this is faster than .apply:
+labels = [is_human_move_good(mv, ed) for mv, ed in zip(df_features["human_move"], df_features["evals_dict"])]
+df_features["label_move_ease"] = labels
 
 
 
