@@ -24,9 +24,9 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
 # --- Build DataFrame with correct feature names ---
 feature_cols = [
     "volatility", "move_ease", "trap_susceptibility", "king_exposure", "castling_status",
-    "defending_pieces", "pawn_structure", "doubled_pawns", "backward_pawns", "pawn_majority",
+    "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
     "mobility", "piece_coordination", "rooks_connected", "bishop_pair", "overworked_defenders",
-    "checks", "captures", "pins", "tactical_motifs", "material_imbalance", "phase",
+    "pins", "tactical_motifs", "material_imbalance", "phase",
     "space_control", "passed_pawns", "center_control"
 ]
 

@@ -35,7 +35,7 @@ else:
 print(f"Already processed games: {processed_games}")
 
 # --- Process new games ---
-MAX_GAMES = 100
+MAX_GAMES = 1
 game_count = 0
 positions = []
 
@@ -107,9 +107,9 @@ df_features["label_move_ease"] = [
 # --- Features and target ---
 feature_cols = [
     "volatility", "move_ease", "trap_susceptibility", "king_exposure", "castling_status",
-    "defending_pieces", "pawn_structure", "doubled_pawns", "backward_pawns", "pawn_majority",
+    "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
     "mobility", "piece_coordination", "rooks_connected", "bishop_pair", "overworked_defenders",
-    "checks", "captures", "pins", "tactical_motifs", "material_imbalance", "phase",
+    "pins", "tactical_motifs", "material_imbalance", "phase",
     "space_control", "passed_pawns", "center_control"
 ]
 
@@ -122,17 +122,41 @@ X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_st
 dtrain = xgb.DMatrix(X_train, label=y_train)
 dval = xgb.DMatrix(X_val, label=y_val)
 
-params = {"objective": "reg:squarederror", "eval_metric": "rmse"}
+# --- Hyperparameters ---
+params = {
+    "objective": "reg:squarederror",
+    "eval_metric": "rmse",
+    "eta": 0.05,                 # Lower learning rate for better generalization
+    "max_depth": 6,              # Tree depth
+    "min_child_weight": 3,       # Regularization
+    "subsample": 0.8,            # Row sampling
+    "colsample_bytree": 0.8,     # Column sampling
+    "gamma": 1.0                 # Min loss reduction
+}
 
-num_boost_round = max(200, len(df_features) // 10)
+# --- Cross-validation to find best number of boosting rounds ---
+print("Running cross-validation to find best number of boosting rounds...")
+cv_results = xgb.cv(
+    params,
+    dtrain,
+    num_boost_round=1000,
+    nfold=5,
+    early_stopping_rounds=50,
+    metrics="rmse",
+    as_pandas=True,
+    seed=42
+)
+best_round = cv_results['test-rmse-mean'].idxmin()
+print(f"Best boosting rounds determined by CV: {best_round}")
 
-print(f"Training model with {num_boost_round} rounds...")
+# --- Train model ---
+print(f"Training model with {best_round} rounds...")
 model = xgb.train(
     params,
     dtrain,
-    num_boost_round=num_boost_round,
+    num_boost_round=best_round,
     evals=[(dtrain, "train"), (dval, "validation")],
-    early_stopping_rounds=10
+    early_stopping_rounds=50
 )
 
 model.save_model(MODEL_PATH)
@@ -152,6 +176,6 @@ print(f"Training MSE: {mse_train:.4f} | R²: {r2_train:.4f}")
 print(f"Validation MSE: {mse_val:.4f} | R²: {r2_val:.4f}")
 
 # --- Feature importance ---
-xgb.plot_importance(model, max_num_features=20)
+xgb.plot_importance(model, max_num_features=24)
 plt.tight_layout()
 plt.show()
