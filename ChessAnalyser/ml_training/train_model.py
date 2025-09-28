@@ -10,8 +10,12 @@ import json
 from tqdm import tqdm
 from feature_extraction import compute_features
 from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 import matplotlib.pyplot as plt
+import numpy as np
+import warnings
+
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # --- Paths ---
 STOCKFISH_PATH = r"C:\Users\alexa\Downloads\stockfish\stockfish-windows-x86-64-avx2.exe"
@@ -35,7 +39,7 @@ else:
 print(f"Already processed games: {processed_games}")
 
 # --- Process new games ---
-MAX_GAMES = 1
+MAX_GAMES = 200
 game_count = 0
 positions = []
 
@@ -58,13 +62,23 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
 
             board = game.board()
             game_positions = []
+            eval_list = []
 
             for move in game.mainline_moves():
+                info = engine.analyse(board, chess.engine.Limit(depth=6))
+                eval_score = info["score"].pov(board.turn).score(mate_score=10000)
+                eval_list.append(eval_score)
+
                 features = compute_features(board, engine)
                 features["human_move"] = move.uci()
                 features["game_number"] = current_game_index
+                features["eval_score"] = eval_score
+
                 game_positions.append(features)
                 board.push(move)
+
+            for i, pos_features in enumerate(game_positions):
+                pos_features["eval_list"] = json.dumps(eval_list)
 
             positions.extend(game_positions)
             game_count += 1
@@ -76,8 +90,6 @@ pbar.close()
 # --- Append new features ---
 if positions:
     df_new = pd.DataFrame(positions)
-    df_new["evals_dict"] = df_new["evals_dict"].apply(json.dumps)
-
     if not df_features.empty:
         df_features = pd.concat([df_features, df_new], ignore_index=True)
     else:
@@ -86,22 +98,25 @@ if positions:
     df_features.to_csv(FEATURES_CSV, index=False)
     print(f"Features saved to {FEATURES_CSV}, total games now: {df_features['game_number'].max()}")
 
-df_features["evals_dict"] = df_features["evals_dict"].apply(json.loads)
+# --- Label function: change in eval after 10 moves ---
+def eval_change_score(eval_list_json, move_index, lookahead=10):
+    eval_list = json.loads(eval_list_json)
+    current_eval = eval_list[move_index]
+    future_index = move_index + lookahead
 
-# --- Label function ---
-def human_move_score(human_move, evals_dict):
-    if not evals_dict:
-        return 0.0
-    best_eval = max(evals_dict.values())
-    human_eval = evals_dict.get(human_move, min(evals_dict.values()))
-    eval_range = best_eval - min(evals_dict.values())
-    if eval_range == 0:
-        return 1.0
-    score = (human_eval - min(evals_dict.values())) / eval_range
+    if future_index >= len(eval_list):
+        future_eval = eval_list[-1]
+    else:
+        future_eval = eval_list[future_index]
+
+    eval_diff = future_eval - current_eval
+    score = 1 / (1 + abs(eval_diff) / 100)
     return float(score)
 
+df_features["move_index"] = df_features.groupby("game_number").cumcount()
 df_features["label_move_ease"] = [
-    human_move_score(mv, ed) for mv, ed in zip(df_features["human_move"], df_features["evals_dict"])
+    eval_change_score(eval_list, idx, lookahead=10)
+    for eval_list, idx in zip(df_features["eval_list"], df_features["move_index"])
 ]
 
 # --- Features and target ---
@@ -116,66 +131,106 @@ feature_cols = [
 X = df_features[feature_cols]
 y = df_features["label_move_ease"]
 
-# --- Train/Validation split ---
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-dtrain = xgb.DMatrix(X_train, label=y_train)
-dval = xgb.DMatrix(X_val, label=y_val)
+from sklearn.model_selection import GridSearchCV
+from xgboost import XGBRegressor
 
-# --- Hyperparameters ---
-params = {
-    "objective": "reg:squarederror",
-    "eval_metric": "rmse",
-    "eta": 0.05,                 # Lower learning rate for better generalization
-    "max_depth": 6,              # Tree depth
-    "min_child_weight": 3,       # Regularization
-    "subsample": 0.8,            # Row sampling
-    "colsample_bytree": 0.8,     # Column sampling
-    "gamma": 1.0                 # Min loss reduction
+print("Running hyperparameter tuning...")
+
+param_grid = {
+    "subsample": [0.7, 0.8, 0.9],
+    "n_estimators": [200, 300, 400],
+    "min_child_weight": [1, 3],
+    "max_depth": [6, 8],
+    "learning_rate": [0.05, 0.1],
+    "gamma": [0, 1],
+    "colsample_bytree": [0.8, 1.0]
 }
 
-# --- Cross-validation to find best number of boosting rounds ---
-print("Running cross-validation to find best number of boosting rounds...")
-cv_results = xgb.cv(
-    params,
-    dtrain,
-    num_boost_round=1000,
-    nfold=5,
-    early_stopping_rounds=50,
-    metrics="rmse",
-    as_pandas=True,
+xgb_model = XGBRegressor(
+    objective="reg:squarederror",
+    tree_method="hist",
     seed=42
 )
-best_round = cv_results['test-rmse-mean'].idxmin()
-print(f"Best boosting rounds determined by CV: {best_round}")
+from sklearn.model_selection import RandomizedSearchCV
 
-# --- Train model ---
-print(f"Training model with {best_round} rounds...")
-model = xgb.train(
-    params,
-    dtrain,
-    num_boost_round=best_round,
-    evals=[(dtrain, "train"), (dval, "validation")],
-    early_stopping_rounds=50
+grid_search = RandomizedSearchCV(
+    estimator=xgb_model,
+    param_distributions=param_grid,
+    n_iter=100,   # number of random parameter combinations to try
+    scoring="neg_mean_squared_error",
+    cv=3,
+    verbose=1,
+    n_jobs=-1,
+    random_state=42
 )
 
-model.save_model(MODEL_PATH)
-print(f"Model saved to {MODEL_PATH}")
 
-# --- Evaluation ---
-y_pred_train = model.predict(dtrain)
-y_pred_val = model.predict(dval)
+grid_search.fit(X_train, y_train)
+best_params = grid_search.best_params_
+print(f"Best hyperparameters found: {best_params}")
 
-mse_train = mean_squared_error(y_train, y_pred_train)
-r2_train = r2_score(y_train, y_pred_train)
+# ---- Final model with early stopping ----
+final_model = XGBRegressor(
+    **best_params,
+    objective="reg:squarederror",
+    eval_metric="rmse",
+    tree_method="hist",
+    seed=42
+)
 
-mse_val = mean_squared_error(y_val, y_pred_val)
-r2_val = r2_score(y_val, y_pred_val)
+final_model.fit(
+    X_train, y_train,
+    eval_set=[(X_val, y_val)],
+    verbose=False
+)
 
-print(f"Training MSE: {mse_train:.4f} | R²: {r2_train:.4f}")
-print(f"Validation MSE: {mse_val:.4f} | R²: {r2_val:.4f}")
+
+print("Final model trained successfully.")
+
+# --- Evaluate model ---
+y_pred = final_model.predict(X_val)
+
+rmse = mean_squared_error(y_val, y_pred) ** 0.5
+r2 = r2_score(y_val, y_pred)
+corr = np.corrcoef(y_val, y_pred)[0, 1]
+
+print("\n--- Model Evaluation ---")
+print(f"Validation RMSE: {rmse:.4f}")
+print(f"Validation R²:   {r2:.4f}")
+print(f"Correlation:     {corr:.4f}")
 
 # --- Feature importance ---
-xgb.plot_importance(model, max_num_features=24)
+importances = final_model.feature_importances_
+importance_df = pd.DataFrame({
+    "feature": feature_cols,
+    "importance": importances
+}).sort_values(by="importance", ascending=False)
+
+print("\n--- Top 10 Features ---")
+print(importance_df.head(10))
+
+# --- Plot feature importance ---
+plt.figure(figsize=(10, 6))
+plt.barh(importance_df["feature"], importance_df["importance"], color="skyblue")
+plt.gca().invert_yaxis()
+plt.title("Feature Importance (XGBoost Gain)")
+plt.xlabel("Importance")
 plt.tight_layout()
 plt.show()
+
+# --- Plot learning curve (if eval history is available) ---
+if final_model.evals_result():
+    evals_result = final_model.evals_result()
+    epochs = len(evals_result['validation_0']['rmse'])
+    x_axis = range(0, epochs)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(x_axis, evals_result['validation_0']['rmse'], label='Validation')
+    plt.title('XGBoost RMSE over Iterations')
+    plt.xlabel('Iteration')
+    plt.ylabel('RMSE')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
