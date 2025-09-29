@@ -7,6 +7,7 @@ import zstandard as zstd
 import io
 import xgboost as xgb
 import json
+import joblib
 from tqdm import tqdm
 from feature_extraction import compute_features
 from sklearn.metrics import mean_squared_error, r2_score
@@ -21,8 +22,10 @@ warnings.filterwarnings("ignore", category=UserWarning)
 STOCKFISH_PATH = r"C:\Users\alexa\Downloads\stockfish\stockfish-windows-x86-64-avx2.exe"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(SCRIPT_DIR, "data", "lichess_data.zst")
-MODEL_PATH = os.path.join(SCRIPT_DIR, "human_playability_model.json")
 FEATURES_CSV = os.path.join(SCRIPT_DIR, "features.csv")
+MODEL_DIR = os.path.join(SCRIPT_DIR, "elo_models")
+
+os.makedirs(MODEL_DIR, exist_ok=True)
 
 # --- Load already processed features ---
 if os.path.exists(FEATURES_CSV):
@@ -39,7 +42,7 @@ else:
 print(f"Already processed games: {processed_games}")
 
 # --- Process new games ---
-MAX_GAMES = 200
+MAX_GAMES = 1000
 game_count = 0
 positions = []
 
@@ -60,6 +63,16 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
                 game = chess.pgn.read_game(text_stream)
                 continue
 
+            # --- Extract average Elo ---
+            avg_elo = None
+            if "WhiteElo" in game.headers and "BlackElo" in game.headers:
+                try:
+                    white_elo = int(game.headers["WhiteElo"])
+                    black_elo = int(game.headers["BlackElo"])
+                    avg_elo = (white_elo + black_elo) / 2
+                except ValueError:
+                    avg_elo = None
+
             board = game.board()
             game_positions = []
             eval_list = []
@@ -73,6 +86,7 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
                 features["human_move"] = move.uci()
                 features["game_number"] = current_game_index
                 features["eval_score"] = eval_score
+                features["avg_elo"] = avg_elo
 
                 game_positions.append(features)
                 board.push(move)
@@ -119,118 +133,125 @@ df_features["label_move_ease"] = [
     for eval_list, idx in zip(df_features["eval_list"], df_features["move_index"])
 ]
 
+# --- Elo range categorization ---
+def categorize_elo(avg_elo):
+    if avg_elo is None:
+        return "unknown"
+    if avg_elo < 800:
+        return "800-"
+    elif avg_elo <= 1100:
+        return "800-1100"
+    elif avg_elo <= 1400:
+        return "1100-1400"
+    elif avg_elo <= 1600:
+        return "1400-1600"
+    elif avg_elo <= 1800:
+        return "1600-1800"
+    elif avg_elo <= 2000:
+        return "1800-2000"
+    elif avg_elo <= 2200:
+        return "2000-2200"
+    else:
+        return "2200+"
+
+df_features["elo_range"] = df_features["avg_elo"].apply(categorize_elo)
+
 # --- Features and target ---
 feature_cols = [
-    "volatility", "move_ease", "trap_susceptibility", "king_exposure", "castling_status",
+    "volatility", "move_ease", "trap_susceptibility", "king_exposure",
     "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
     "mobility", "piece_coordination", "rooks_connected", "bishop_pair", "overworked_defenders",
     "pins", "tactical_motifs", "material_imbalance", "phase",
     "space_control", "passed_pawns", "center_control"
 ]
 
-X = df_features[feature_cols]
-y = df_features["label_move_ease"]
+elo_ranges = df_features["elo_range"].unique()
 
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+models = {}
+model_metrics = {}
 
-from sklearn.model_selection import GridSearchCV
-from xgboost import XGBRegressor
+# --- Train a model for each Elo range ---
+for elo_range in elo_ranges:
+    df_range = df_features[df_features["elo_range"] == elo_range]
 
-print("Running hyperparameter tuning...")
+    if df_range.shape[0] < 50:
+        print(f"Skipping Elo range {elo_range} due to insufficient data")
+        continue
 
-param_grid = {
-    "subsample": [0.7, 0.8, 0.9],
-    "n_estimators": [200, 300, 400],
-    "min_child_weight": [1, 3],
-    "max_depth": [6, 8],
-    "learning_rate": [0.05, 0.1],
-    "gamma": [0, 1],
-    "colsample_bytree": [0.8, 1.0]
-}
+    print(f"\nTraining model for Elo range: {elo_range} (games: {df_range['game_number'].nunique()})")
 
-xgb_model = XGBRegressor(
-    objective="reg:squarederror",
-    tree_method="hist",
-    seed=42
-)
-from sklearn.model_selection import RandomizedSearchCV
+    X = df_range[feature_cols]
+    y = df_range["label_move_ease"]
 
-grid_search = RandomizedSearchCV(
-    estimator=xgb_model,
-    param_distributions=param_grid,
-    n_iter=100,   # number of random parameter combinations to try
-    scoring="neg_mean_squared_error",
-    cv=3,
-    verbose=1,
-    n_jobs=-1,
-    random_state=42
-)
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
+    param_grid = {
+        "subsample": [0.7, 0.8, 0.9],
+        "n_estimators": [200, 300],
+        "min_child_weight": [1, 3],
+        "max_depth": [6, 8],
+        "learning_rate": [0.05, 0.1],
+        "gamma": [0, 1],
+        "colsample_bytree": [0.8, 1.0]
+    }
 
-grid_search.fit(X_train, y_train)
-best_params = grid_search.best_params_
-print(f"Best hyperparameters found: {best_params}")
+    xgb_model = xgb.XGBRegressor(
+        objective="reg:squarederror",
+        tree_method="hist",
+        seed=42
+    )
 
-# ---- Final model with early stopping ----
-final_model = XGBRegressor(
-    **best_params,
-    objective="reg:squarederror",
-    eval_metric="rmse",
-    tree_method="hist",
-    seed=42
-)
+    grid_search = RandomizedSearchCV(
+        estimator=xgb_model,
+        param_distributions=param_grid,
+        n_iter=20,
+        scoring="neg_mean_squared_error",
+        cv=3,
+        verbose=1,
+        n_jobs=-1,
+        random_state=42
+    )
 
-final_model.fit(
-    X_train, y_train,
-    eval_set=[(X_val, y_val)],
-    verbose=False
-)
+    grid_search.fit(X_train, y_train)
+    best_params = grid_search.best_params_
+    print(f"Best hyperparameters for {elo_range}: {best_params}")
 
+    final_model = xgb.XGBRegressor(
+        **best_params,
+        objective="reg:squarederror",
+        eval_metric="rmse",
+        tree_method="hist",
+        seed=42
+    )
 
-print("Final model trained successfully.")
+    final_model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
 
-# --- Evaluate model ---
-y_pred = final_model.predict(X_val)
+    y_pred = final_model.predict(X_val)
+    rmse = mean_squared_error(y_val, y_pred) ** 0.5
+    r2 = r2_score(y_val, y_pred)
+    corr = np.corrcoef(y_val, y_pred)[0, 1]
 
-rmse = mean_squared_error(y_val, y_pred) ** 0.5
-r2 = r2_score(y_val, y_pred)
-corr = np.corrcoef(y_val, y_pred)[0, 1]
+    print(f"RMSE: {rmse:.4f} | R²: {r2:.4f} | Corr: {corr:.4f}")
 
-print("\n--- Model Evaluation ---")
-print(f"Validation RMSE: {rmse:.4f}")
-print(f"Validation R²:   {r2:.4f}")
-print(f"Correlation:     {corr:.4f}")
+    models[elo_range] = final_model
+    model_metrics[elo_range] = {
+        "rmse": rmse,
+        "r2": r2,
+        "corr": corr,
+        "n_positions": df_range.shape[0],  # number of positions
+        "n_games": df_range["game_number"].nunique()  # number of unique games
+    }
 
-# --- Feature importance ---
-importances = final_model.feature_importances_
-importance_df = pd.DataFrame({
-    "feature": feature_cols,
-    "importance": importances
-}).sort_values(by="importance", ascending=False)
+    # Save model
+    joblib.dump(final_model, os.path.join(MODEL_DIR, f"model_{elo_range}.pkl"))
 
-print("\n--- Top 10 Features ---")
-print(importance_df.head(10))
+    model_metrics[elo_range]["n_samples"] = df_range.shape[0]
 
-# --- Plot feature importance ---
-plt.figure(figsize=(10, 6))
-plt.barh(importance_df["feature"], importance_df["importance"], color="skyblue")
-plt.gca().invert_yaxis()
-plt.title("Feature Importance (XGBoost Gain)")
-plt.xlabel("Importance")
-plt.tight_layout()
-plt.show()
+# --- Save metrics for analyser ---
 
-# --- Plot learning curve (if eval history is available) ---
-if final_model.evals_result():
-    evals_result = final_model.evals_result()
-    epochs = len(evals_result['validation_0']['rmse'])
-    x_axis = range(0, epochs)
+with open(os.path.join(MODEL_DIR, "model_metrics.json"), "w") as f:
+    json.dump(model_metrics, f, indent=2)
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(x_axis, evals_result['validation_0']['rmse'], label='Validation')
-    plt.title('XGBoost RMSE over Iterations')
-    plt.xlabel('Iteration')
-    plt.ylabel('RMSE')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+print("\n--- Metrics saved to model_metrics.json ---")
+print("\n--- Training complete ---")
+print("Model metrics:", model_metrics)

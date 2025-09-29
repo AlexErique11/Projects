@@ -586,7 +586,7 @@ def compute_features(board, engine, depth=DEPTH):
         "move_ease": move_ease,
         "trap_susceptibility": trap_susceptibility,
         "king_exposure": king_exposure,
-        "castling_status": castling_status,
+        # "castling_status": castling_status,
         "defending_pieces": defending_pieces,
         "doubled_pawns": doubled_pawns,
         "backward_pawns": backward_pawns,
