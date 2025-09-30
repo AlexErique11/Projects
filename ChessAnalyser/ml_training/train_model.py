@@ -15,6 +15,15 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 import matplotlib.pyplot as plt
 import numpy as np
 import warnings
+import os
+import json
+
+# Load feature sets from feature_sets.json
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+FEATURE_SETS_PATH = os.path.join(SCRIPT_DIR, "feature_sets.json")
+
+with open(FEATURE_SETS_PATH, "r") as f:
+    FEATURE_SETS = json.load(f)
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -42,7 +51,7 @@ else:
 print(f"Already processed games: {processed_games}")
 
 # --- Process new games ---
-MAX_GAMES = 1000
+MAX_GAMES = 100
 game_count = 0
 positions = []
 
@@ -73,6 +82,10 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
                 except ValueError:
                     avg_elo = None
 
+            # if avg_elo is None or avg_elo >= 800:
+            #     game = chess.pgn.read_game(text_stream)
+            #     continue
+
             board = game.board()
             game_positions = []
             eval_list = []
@@ -83,10 +96,29 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
                 eval_list.append(eval_score)
 
                 features = compute_features(board, engine)
-                features["human_move"] = move.uci()
+                human_move = move.uci()
+                features["human_move"] = human_move
                 features["game_number"] = current_game_index
                 features["eval_score"] = eval_score
                 features["avg_elo"] = avg_elo
+
+                # --- Label 1: Ease score (after 10 moves) handled later ---
+
+                # --- Label 2: Move quality (distance from best move) ---
+                best_move = info["pv"][0] if "pv" in info else None
+                if best_move is not None:
+                    # eval after best move
+                    board.push(best_move)
+                    best_info = engine.analyse(board, chess.engine.Limit(depth=6))
+                    board.pop()
+                    best_eval_score = best_info["score"].pov(board.turn).score(mate_score=10000)
+
+                    diff = abs(best_eval_score - eval_score)
+                    move_ease = 1 / (1 + diff / 100)  # scaled to (0,1]
+                else:
+                    move_ease = 0.5
+
+                features["label_move_ease"] = move_ease
 
                 game_positions.append(features)
                 board.push(move)
@@ -128,7 +160,7 @@ def eval_change_score(eval_list_json, move_index, lookahead=10):
     return float(score)
 
 df_features["move_index"] = df_features.groupby("game_number").cumcount()
-df_features["label_move_ease"] = [
+df_features["label_position_quality"] = [
     eval_change_score(eval_list, idx, lookahead=10)
     for eval_list, idx in zip(df_features["eval_list"], df_features["move_index"])
 ]
@@ -165,93 +197,105 @@ feature_cols = [
     "space_control", "passed_pawns", "center_control"
 ]
 
+targets = ["label_position_quality", "label_move_ease"]
 elo_ranges = df_features["elo_range"].unique()
+# elo_ranges = ["800-"]  # Only train on this Elo range
 
 models = {}
 model_metrics = {}
 
 # --- Train a model for each Elo range ---
 for elo_range in elo_ranges:
+    # if elo_range != "800-":
+    #     continue
     df_range = df_features[df_features["elo_range"] == elo_range]
 
     if df_range.shape[0] < 50:
         print(f"Skipping Elo range {elo_range} due to insufficient data")
         continue
 
-    print(f"\nTraining model for Elo range: {elo_range} (games: {df_range['game_number'].nunique()})")
+    print(f"\nTraining models for Elo range: {elo_range} (games: {df_range['game_number'].nunique()})")
 
-    X = df_range[feature_cols]
-    y = df_range["label_move_ease"]
+    for target in targets:
+        # Get feature list for this elo_range and target
+        if elo_range in FEATURE_SETS and target in FEATURE_SETS[elo_range]:
+            feature_cols = FEATURE_SETS[elo_range][target]
+        else:
+            feature_cols = FEATURE_SETS["default"][target]
 
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+        X = df_range[feature_cols]
+        y = df_range[target]
 
-    param_grid = {
-        "subsample": [0.7, 0.8, 0.9],
-        "n_estimators": [200, 300],
-        "min_child_weight": [1, 3],
-        "max_depth": [6, 8],
-        "learning_rate": [0.05, 0.1],
-        "gamma": [0, 1],
-        "colsample_bytree": [0.8, 1.0]
-    }
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    xgb_model = xgb.XGBRegressor(
-        objective="reg:squarederror",
-        tree_method="hist",
-        seed=42
-    )
+        param_grid = {
+            "subsample": [0.7, 0.8, 0.9],
+            "n_estimators": [200, 300],
+            "min_child_weight": [1, 3],
+            "max_depth": [6, 8],
+            "learning_rate": [0.05, 0.1],
+            "gamma": [0, 1],
+            "colsample_bytree": [0.8, 1.0]
+        }
 
-    grid_search = RandomizedSearchCV(
-        estimator=xgb_model,
-        param_distributions=param_grid,
-        n_iter=20,
-        scoring="neg_mean_squared_error",
-        cv=3,
-        verbose=1,
-        n_jobs=-1,
-        random_state=42
-    )
+        xgb_model = xgb.XGBRegressor(
+            objective="reg:squarederror",
+            tree_method="hist",
+            seed=42
+        )
 
-    grid_search.fit(X_train, y_train)
-    best_params = grid_search.best_params_
-    print(f"Best hyperparameters for {elo_range}: {best_params}")
+        grid_search = RandomizedSearchCV(
+            estimator=xgb_model,
+            param_distributions=param_grid,
+            n_iter=20,
+            scoring="neg_mean_squared_error",
+            cv=3,
+            verbose=1,
+            n_jobs=-1,
+            random_state=42
+        )
 
-    final_model = xgb.XGBRegressor(
-        **best_params,
-        objective="reg:squarederror",
-        eval_metric="rmse",
-        tree_method="hist",
-        seed=42
-    )
+        grid_search.fit(X_train, y_train)
+        best_params = grid_search.best_params_
+        print(f"Best hyperparameters for {elo_range} ({target}): {best_params}")
 
-    final_model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+        final_model = xgb.XGBRegressor(
+            **best_params,
+            objective="reg:squarederror",
+            eval_metric="rmse",
+            tree_method="hist",
+            seed=42
+        )
 
-    y_pred = final_model.predict(X_val)
-    rmse = mean_squared_error(y_val, y_pred) ** 0.5
-    r2 = r2_score(y_val, y_pred)
-    corr = np.corrcoef(y_val, y_pred)[0, 1]
+        final_model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
 
-    print(f"RMSE: {rmse:.4f} | R²: {r2:.4f} | Corr: {corr:.4f}")
+        y_pred = final_model.predict(X_val)
+        rmse = mean_squared_error(y_val, y_pred) ** 0.5
+        r2 = r2_score(y_val, y_pred)
+        corr = np.corrcoef(y_val, y_pred)[0, 1]
 
-    models[elo_range] = final_model
-    model_metrics[elo_range] = {
-        "rmse": rmse,
-        "r2": r2,
-        "corr": corr,
-        "n_positions": df_range.shape[0],  # number of positions
-        "n_games": df_range["game_number"].nunique()  # number of unique games
-    }
+        print(f"[{target}] RMSE: {rmse:.4f} | R²: {r2:.4f} | Corr: {corr:.4f}")
 
-    # Save model
-    joblib.dump(final_model, os.path.join(MODEL_DIR, f"model_{elo_range}.pkl"))
+        # Save model
+        model_filename = f"model_{elo_range}_{target}.pkl"
+        joblib.dump(final_model, os.path.join(MODEL_DIR, model_filename))
 
-    model_metrics[elo_range]["n_samples"] = df_range.shape[0]
+        if elo_range not in model_metrics:
+            model_metrics[elo_range] = {}
+        model_metrics[elo_range][target] = {
+            "rmse": rmse,
+            "r2": r2,
+            "corr": corr,
+            "n_positions": df_range.shape[0],
+            "n_games": df_range["game_number"].nunique()
+        }
 
 # --- Save metrics for analyser ---
 
+# --- Save metrics for this Elo range after both models are trained ---
 with open(os.path.join(MODEL_DIR, "model_metrics.json"), "w") as f:
     json.dump(model_metrics, f, indent=2)
 
-print("\n--- Metrics saved to model_metrics.json ---")
+print(f"Metrics for Elo {elo_range} saved.")
 print("\n--- Training complete ---")
 print("Model metrics:", model_metrics)

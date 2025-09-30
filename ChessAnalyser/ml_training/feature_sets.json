@@ -1,0 +1,34 @@
+{
+    "800-1100": {
+        "label_position_quality": [
+            "volatility", "trap_susceptibility", "king_exposure", "mobility"
+        ],
+        "label_move_ease": [
+            "move_ease", "tactical_motifs", "phase", "center_control"
+        ]
+    },
+    "1100-1400": {
+        "label_position_quality": [
+            "volatility", "move_ease", "phase", "space_control"
+        ],
+        "label_move_ease": [
+            "tactical_motifs", "king_exposure", "material_imbalance"
+        ]
+    },
+    "default": {
+        "label_position_quality": [
+            "volatility", "move_ease", "trap_susceptibility", "king_exposure",
+            "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
+            "mobility", "piece_coordination", "rooks_connected", "bishop_pair",
+            "overworked_defenders", "pins", "tactical_motifs", "material_imbalance",
+            "phase", "space_control", "passed_pawns", "center_control"
+        ],
+        "label_move_ease": [
+            "volatility", "move_ease", "trap_susceptibility", "king_exposure",
+            "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
+            "mobility", "piece_coordination", "rooks_connected", "bishop_pair",
+            "overworked_defenders", "pins", "tactical_motifs", "material_imbalance",
+            "phase", "space_control", "passed_pawns", "center_control"
+        ]
+    }
+}
