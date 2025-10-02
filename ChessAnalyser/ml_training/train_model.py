@@ -50,6 +50,24 @@ else:
 
 print(f"Already processed games: {processed_games}")
 
+
+# --- Determine time control category ---
+def categorize_time_control(game_headers):
+    if "TimeControl" not in game_headers:
+        return "unknown"
+    tc = game_headers["TimeControl"]
+    try:
+        tc = int(tc.split("+")[0])  # base time in seconds
+    except ValueError:
+        return "unknown"
+
+    if tc < 180:  # <3 min → Bullet
+        return "bullet"
+    elif tc < 600:  # 3-10 min → Blitz
+        return "blitz"
+    else:  # 10+ min → Rapid/Classical
+        return "rapid_classical"
+
 # --- Process new games ---
 MAX_GAMES = 100
 game_count = 0
@@ -82,9 +100,16 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
                 except ValueError:
                     avg_elo = None
 
-            # if avg_elo is None or avg_elo >= 800:
+            # if avg_elo is None or avg_elo < 800 or avg_elo >= 1100:
             #     game = chess.pgn.read_game(text_stream)
             #     continue
+            # here
+
+            # --- Determine time control ---
+            time_control = categorize_time_control(game.headers)
+            if time_control == "bullet":  # skip bullet games
+                game = chess.pgn.read_game(text_stream)
+                continue
 
             board = game.board()
             game_positions = []
@@ -101,6 +126,7 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
                 features["game_number"] = current_game_index
                 features["eval_score"] = eval_score
                 features["avg_elo"] = avg_elo
+                features["time_control"] = time_control
 
                 # --- Label 1: Ease score (after 10 moves) handled later ---
 
@@ -145,7 +171,7 @@ if positions:
     print(f"Features saved to {FEATURES_CSV}, total games now: {df_features['game_number'].max()}")
 
 # --- Label function: change in eval after 10 moves ---
-def eval_change_score(eval_list_json, move_index, lookahead=10):
+def eval_change_score(eval_list_json, move_index, lookahead=20):
     eval_list = json.loads(eval_list_json)
     current_eval = eval_list[move_index]
     future_index = move_index + lookahead
@@ -188,107 +214,116 @@ def categorize_elo(avg_elo):
 
 df_features["elo_range"] = df_features["avg_elo"].apply(categorize_elo)
 
+
 # --- Features and target ---
 feature_cols = [
     "volatility", "move_ease", "trap_susceptibility", "king_exposure",
     "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
-    "mobility", "piece_coordination", "rooks_connected", "bishop_pair", "overworked_defenders",
+    "mobility", "piece_coordination", "hanging_pieces", "rooks_connected", "bishop_pair", "overworked_defenders",
     "pins", "tactical_motifs", "material_imbalance", "phase",
-    "space_control", "passed_pawns", "center_control"
+    "space_control", "passed_pawns", "center_control", "stockfish_eval"
 ]
 
 targets = ["label_position_quality", "label_move_ease"]
 elo_ranges = df_features["elo_range"].unique()
-# elo_ranges = ["800-"]  # Only train on this Elo range
+# elo_ranges = ["800-1100"]  # Only train on this Elo range here
 
 models = {}
 model_metrics = {}
 
 # --- Train a model for each Elo range ---
+time_controls = ["blitz", "rapid_classical"]  # bullet is ignored
+
 for elo_range in elo_ranges:
-    # if elo_range != "800-":
-    #     continue
-    df_range = df_features[df_features["elo_range"] == elo_range]
+    for tc in time_controls:
+        df_range = df_features[
+            (df_features["elo_range"] == elo_range) &
+            (df_features["time_control"] == tc)
+        ]
+        if df_range.shape[0] < 50:
+            print(f"Skipping Elo {elo_range}, Time {tc} due to insufficient data")
+            continue
 
-    if df_range.shape[0] < 50:
-        print(f"Skipping Elo range {elo_range} due to insufficient data")
-        continue
+        print(f"\nTraining models for Elo {elo_range}, Time {tc} "
+              f"(games: {df_range['game_number'].nunique()})")
 
-    print(f"\nTraining models for Elo range: {elo_range} (games: {df_range['game_number'].nunique()})")
+        for target in targets:
+            # Get feature list
+            if elo_range in FEATURE_SETS and target in FEATURE_SETS[elo_range]:
+                feature_cols = FEATURE_SETS[elo_range][target]
+            else:
+                feature_cols = FEATURE_SETS["default"][target]
 
-    for target in targets:
-        # Get feature list for this elo_range and target
-        if elo_range in FEATURE_SETS and target in FEATURE_SETS[elo_range]:
-            feature_cols = FEATURE_SETS[elo_range][target]
-        else:
-            feature_cols = FEATURE_SETS["default"][target]
+            X = df_range[feature_cols]
+            y = df_range[target]
 
-        X = df_range[feature_cols]
-        y = df_range[target]
+            X_train, X_val, y_train, y_val = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
 
-        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+            # --- Train model (same as current pipeline) ---
+            param_grid = {
+                "subsample": [0.7, 0.8, 0.9],
+                "n_estimators": [200, 300],
+                "min_child_weight": [1, 3],
+                "max_depth": [6, 8],
+                "learning_rate": [0.05, 0.1],
+                "gamma": [0, 1],
+                "colsample_bytree": [0.8, 1.0]
+            }
 
-        param_grid = {
-            "subsample": [0.7, 0.8, 0.9],
-            "n_estimators": [200, 300],
-            "min_child_weight": [1, 3],
-            "max_depth": [6, 8],
-            "learning_rate": [0.05, 0.1],
-            "gamma": [0, 1],
-            "colsample_bytree": [0.8, 1.0]
-        }
+            xgb_model = xgb.XGBRegressor(
+                objective="reg:squarederror",
+                tree_method="hist",
+                seed=42
+            )
 
-        xgb_model = xgb.XGBRegressor(
-            objective="reg:squarederror",
-            tree_method="hist",
-            seed=42
-        )
+            grid_search = RandomizedSearchCV(
+                estimator=xgb_model,
+                param_distributions=param_grid,
+                n_iter=20,
+                scoring="neg_mean_squared_error",
+                cv=3,
+                verbose=1,
+                n_jobs=-1,
+                random_state=42
+            )
 
-        grid_search = RandomizedSearchCV(
-            estimator=xgb_model,
-            param_distributions=param_grid,
-            n_iter=20,
-            scoring="neg_mean_squared_error",
-            cv=3,
-            verbose=1,
-            n_jobs=-1,
-            random_state=42
-        )
+            grid_search.fit(X_train, y_train)
+            best_params = grid_search.best_params_
 
-        grid_search.fit(X_train, y_train)
-        best_params = grid_search.best_params_
-        print(f"Best hyperparameters for {elo_range} ({target}): {best_params}")
+            final_model = xgb.XGBRegressor(
+                **best_params,
+                objective="reg:squarederror",
+                eval_metric="rmse",
+                tree_method="hist",
+                seed=42
+            )
+            final_model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
 
-        final_model = xgb.XGBRegressor(
-            **best_params,
-            objective="reg:squarederror",
-            eval_metric="rmse",
-            tree_method="hist",
-            seed=42
-        )
+            # --- Evaluate & save ---
+            y_pred = final_model.predict(X_val)
+            rmse = mean_squared_error(y_val, y_pred) ** 0.5
+            r2 = r2_score(y_val, y_pred)
+            corr = np.corrcoef(y_val, y_pred)[0, 1]
 
-        final_model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+            print(f"[{target}] RMSE: {rmse:.4f} | R²: {r2:.4f} | Corr: {corr:.4f}")
 
-        y_pred = final_model.predict(X_val)
-        rmse = mean_squared_error(y_val, y_pred) ** 0.5
-        r2 = r2_score(y_val, y_pred)
-        corr = np.corrcoef(y_val, y_pred)[0, 1]
+            model_filename = f"model_{elo_range}_{tc}_{target}.pkl"
+            joblib.dump(final_model, os.path.join(MODEL_DIR, model_filename))
 
-        print(f"[{target}] RMSE: {rmse:.4f} | R²: {r2:.4f} | Corr: {corr:.4f}")
+            if elo_range not in model_metrics:
+                model_metrics[elo_range] = {}
+            if tc not in model_metrics[elo_range]:
+                model_metrics[elo_range][tc] = {}
+            model_metrics[elo_range][tc][target] = {
+                "rmse": rmse,
+                "r2": r2,
+                "corr": corr,
+                "n_positions": df_range.shape[0],
+                "n_games": df_range["game_number"].nunique()
+            }
 
-        # Save model
-        model_filename = f"model_{elo_range}_{target}.pkl"
-        joblib.dump(final_model, os.path.join(MODEL_DIR, model_filename))
-
-        if elo_range not in model_metrics:
-            model_metrics[elo_range] = {}
-        model_metrics[elo_range][target] = {
-            "rmse": rmse,
-            "r2": r2,
-            "corr": corr,
-            "n_positions": df_range.shape[0],
-            "n_games": df_range["game_number"].nunique()
-        }
 
 # --- Save metrics for analyser ---
 

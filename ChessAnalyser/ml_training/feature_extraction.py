@@ -9,7 +9,7 @@ STOCKFISH_PATH = r"C:\Users\alexa\Downloads\stockfish\stockfish-windows-x86-64-a
 DEPTH = 6
 MATE_SCORE = 100000
 
-def evaluate_all_moves(board, engine, depth=DEPTH):
+def evaluate_all_moves(board, engine, depth):
     legal_moves = list(board.legal_moves)
     n = len(legal_moves)
     if n == 0:
@@ -120,37 +120,34 @@ def compute_features(board, engine, depth=DEPTH):
     defending_pieces = compute_defending_pieces(board, king_square)
 
     # Pawn structure
-    pawns = list(board.pieces(chess.PAWN, board.turn))
-    files = [chess.square_file(p) for p in pawns]
-    doubled_pawns = sum(files.count(f) - 1 for f in set(files))
+    doubled_pawns = sum(
+        [list(chess.square_file(sq) for sq in board.pieces(chess.PAWN, not board.turn)).count(f) - 1 for f in
+         set(chess.square_file(sq) for sq in board.pieces(chess.PAWN, not board.turn))]) - sum(
+        [list(chess.square_file(sq) for sq in board.pieces(chess.PAWN, board.turn)).count(f) - 1 for f in
+         set(chess.square_file(sq) for sq in board.pieces(chess.PAWN, board.turn))])
 
-    # Correct backward pawn detection
-    backward_pawns = 0
-    pawns = list(board.pieces(chess.PAWN, board.turn))
-
-    for p in pawns:
-        f, r = chess.square_file(p), chess.square_rank(p)
-
-        # Check if there is a friendly pawn in front of this pawn (same file)
-        has_protected_pawn = any(
-            other in pawns and chess.square_file(other) in [f - 1, f + 1] and
-            (
-                    (board.turn == chess.WHITE and chess.square_rank(other) == r + 1) or
-                    (board.turn == chess.BLACK and chess.square_rank(other) == r - 1)
+    # Backward pawn detection
+    backward_pawns = (
+            sum(
+                1 for p in board.pieces(chess.PAWN, chess.WHITE)
+                if any(
+                    chess.square_file(o) in [chess.square_file(p) - 1, chess.square_file(p) + 1] and chess.square_rank(
+                        o) > chess.square_rank(p) for o in board.pieces(chess.PAWN, chess.WHITE))
+                and not any(
+                    chess.square_file(o) in [chess.square_file(p) - 1, chess.square_file(p) + 1] and chess.square_rank(
+                        o) < chess.square_rank(p) for o in board.pieces(chess.PAWN, chess.WHITE))
             )
-            for other in pawns
-        )
-
-        # Check if this pawn is protected by any pawn on adjacent files behind it
-        protected_by_adjacent_pawn = any(
-            chess.square_file(other) in [f - 1, f + 1] and
-            (chess.square_rank(other) < r if board.turn == chess.WHITE else chess.square_rank(other) > r)
-            for other in pawns
-        )
-
-        # If pawn protects another but is not protected itself
-        if has_protected_pawn and not protected_by_adjacent_pawn:
-            backward_pawns += 1
+            - sum(
+        1 for p in board.pieces(chess.PAWN, chess.BLACK)
+        if any(chess.square_file(o) in [chess.square_file(p) - 1, chess.square_file(p) + 1] and chess.square_rank(
+            o) < chess.square_rank(p) for o in board.pieces(chess.PAWN, chess.BLACK))
+        and not any(chess.square_file(o) in [chess.square_file(p) - 1, chess.square_file(p) + 1] and chess.square_rank(
+            o) > chess.square_rank(p) for o in board.pieces(chess.PAWN, chess.BLACK))
+    )
+    )
+    # If it's Black's turn, invert the sign
+    if not board.turn:
+        backward_pawns = -backward_pawns
 
     def pawn_islands(pawns):
         """Return list of islands, each island is a set of files occupied."""
@@ -316,50 +313,62 @@ def compute_features(board, engine, depth=DEPTH):
     )
     piece_coordination = connectedness / max(1, len(my_pieces))
 
+    # Hanging pieces
+    hanging_pieces = 0
+    major_pieces = [chess.QUEEN, chess.ROOK, chess.BISHOP, chess.KNIGHT]
+
+    for piece_type in major_pieces:
+        for square in board.pieces(piece_type, board.turn):
+            if not board.is_attacked_by(board.turn, square):
+                hanging_pieces += 1
+    for square in board.pieces(chess.PAWN, board.turn):
+        if not board.is_attacked_by(board.turn, square):
+            hanging_pieces += 0.25
+
     rooks = list(board.pieces(chess.ROOK, board.turn))
     rooks_connected = int(len(rooks) == 2 and board.is_attacked_by(board.turn, rooks[0]) and board.is_attacked_by(board.turn, rooks[1]))
     bishop_pair = int(len(board.pieces(chess.BISHOP, board.turn)) == 2)
 
-    def is_overworked(board, sq, piece):
-        defended_squares = [
-            defended_sq for defended_sq in chess.SQUARES
-            if board.piece_at(defended_sq) and
-               board.piece_at(defended_sq).color == board.turn and
-               sq in board.attackers(board.turn, defended_sq)
-        ]
 
-        if len(defended_squares) <= 1:
-            return False
+    def overworked_pieces(board):
+        """
+            Returns a list of squares where the piece protects 2 or more
+            major pieces (rook or queen) that are not defended by any other piece.
+            """
+        MAJOR_PIECES = [chess.QUEEN, chess.ROOK, chess.BISHOP, chess.KNIGHT]
+        count = 0
+        for square in chess.SQUARES:
+            piece = board.piece_at(square)
+            if piece is None:
+                continue
 
-        if piece.piece_type in [chess.BISHOP, chess.ROOK, chess.QUEEN]:
-            # Check if all defended pieces are on the same line/diagonal
-            directions = []
-            for target in defended_squares:
-                file_diff = chess.square_file(target) - chess.square_file(sq)
-                rank_diff = chess.square_rank(target) - chess.square_rank(sq)
+            protected_major_count = 0
+            attacked_squares = board.attacks(square)
 
-                if file_diff == 0:
-                    directions.append("file")
-                elif rank_diff == 0:
-                    directions.append("rank")
-                elif abs(file_diff) == abs(rank_diff):
-                    directions.append("diagonal")
-                else:
-                    directions.append("other")
+            for target_square in attacked_squares:
+                target_piece = board.piece_at(target_square)
+                if target_piece is None:
+                    continue
+                if target_piece.color != piece.color:
+                    continue
+                if target_piece.piece_type not in MAJOR_PIECES:
+                    continue
 
-            if len(set(directions)) == 1:
-                return False  # all defended pieces are along the same line/diagonal
+                # Check if target_piece is defended by any other piece
+                defenders = board.attackers(piece.color, target_square)
+                if len(defenders) == 1 and square in defenders:
+                    protected_major_count += 1
+            if piece.color is board.turn and protected_major_count >= 2:
+                count += 1
+            if piece.color is not board.turn and protected_major_count >= 2:
+                count -= 1
 
-        return True
-
-    overworked = sum(
-        1 for sq, piece in board.piece_map().items()
-        if piece.color == board.turn and is_overworked(board, sq, piece)
-    )
-    overworked = 0 #still incomplete feature
+        return count
+    overworked = overworked_pieces(board)
 
     # Engine-heavy features
-    best_eval, evals_dict = evaluate_all_moves(board, engine, depth=depth)
+    best_eval, evals_dict = evaluate_all_moves(board, engine, DEPTH)
+    stockfish_eval = best_eval
     evals = list(evals_dict.values())
     # print("Best eval:", best_eval)
     # print("Legal moves and their evaluations:")
@@ -418,9 +427,9 @@ def compute_features(board, engine, depth=DEPTH):
     else:
         volatility = 0.0
 
-    def compute_trap_susceptibility(board, engine, evals_dict, lower_depth=2):
+    def compute_trap_susceptibility(board, engine, evals_dict, lower_depth=1):
         # Step 1: Evaluate all moves at lower depth
-        lower_best_eval, lower_evals_dict = evaluate_all_moves(board, engine, depth=lower_depth)
+        lower_best_eval, lower_evals_dict = evaluate_all_moves(board, engine, lower_depth)
 
         trap_moves = 0
         candidate_moves = 0
@@ -431,88 +440,95 @@ def compute_features(board, engine, depth=DEPTH):
         for move_uci, eval_at_lower_depth in lower_evals_dict.items():
             # Check if move is a "best move"
             if lower_best_eval >= 0:
-                keeps_advantage = eval_at_lower_depth >= lower_best_eval * threshold
+                keeps_advantage = (eval_at_lower_depth >= lower_best_eval * threshold)
             else:
                 keeps_advantage = eval_at_lower_depth >= lower_best_eval * (
                             1 + 0.2) if lower_best_eval <= -300 else eval_at_lower_depth >= lower_best_eval * (1 + 0.4)
-            # print("Legal moves and their evaluations:")
-            #
-            # for move_uci, score in evals_dict.items():
-            #     print(f"Move: {move_uci}, Eval: {score}")
+
+            if eval_at_lower_depth == 100000 or -100000:
+                keeps_advantage = True
             if keeps_advantage:
                 candidate_moves += 1
 
                 # Step 3: Check deeper evaluation
                 deeper_eval = evals_dict.get(chess.Move.from_uci(str(move_uci)))
-                # print(f"Candidate move: {move_uci}, Lower depth eval: {eval_at_lower_depth}, Deeper eval: {deeper_eval}")
-
-                # Trap detection: deeper eval significantly worse
-                if deeper_eval < best_eval - 450:  # drop ≥ 1.5 pawns
+                if eval_at_lower_depth == 100000:
                     trap_moves += 1
-                    # print("trap move:", {move_uci}, deeper_eval, lower_best_eval)
-
-
-
+                    continue
+                if eval_at_lower_depth == -100000 and deeper_eval < 200:
+                    trap_moves += 1
+                    continue
+                # Trap detection: deeper eval significantly worse
+                if deeper_eval < eval_at_lower_depth - 450 and deeper_eval < 500:  # drop ≥ 1.5 pawns
+                    trap_moves += 1
+                elif deeper_eval < eval_at_lower_depth - 600 and deeper_eval >= 500:
+                    trap_moves += 1
 
         # Step 4: Normalize
         return trap_moves / max(1, candidate_moves)
 
     trap_susceptibility = compute_trap_susceptibility(board, engine, evals_dict)
 
+
     def compute_move_ease(board, legal_moves, best_eval, evals_dict):
         top_moves, decent_moves = 0, 0
 
+        good_moves = 0
         for move in legal_moves:
-            move_eval = evals_dict.get(move.uci(), best_eval)
-
+            move_eval = evals_dict.get(move, None)
             # Determine if it's a top move
             if best_eval >= 0:
-                keeps_advantage = move_eval >= best_eval * 0.7
+                keeps_advantage = (move_eval >= best_eval * 0.7)
                 increases_disadvantage = False
             else:
                 if best_eval <= -300:  # big disadvantage (< -3 pawns)
-                    increases_disadvantage = move_eval >= best_eval * 1.2
-                else:  # smaller disadvantage
-                    increases_disadvantage = move_eval >= best_eval * 1.4
+                    increases_disadvantage = (move_eval >= best_eval * 1.2)
+                elif best_eval <= -100:  # smaller disadvantage
+                    increases_disadvantage = (move_eval >= best_eval * 1.4)
+                else:
+                    increases_disadvantage = (move_eval >= best_eval * 1.8)
                 keeps_advantage = False
 
-            is_top_move = keeps_advantage or not increases_disadvantage
-
+            is_top_move = keeps_advantage or increases_disadvantage
             # Determine if it's a decent move
             if not is_top_move:
                 if best_eval >= 0:
-                    keeps_half_advantage = move_eval >= best_eval * 0.5
+                    keeps_half_advantage = (move_eval >= best_eval * 0.5)
                     increases_disadvantage_decent = False
                 else:
                     if best_eval <= -300:
-                        increases_disadvantage_decent = move_eval >= best_eval * 1.4
+                        increases_disadvantage_decent = (move_eval >= best_eval * 1.6)
+                    elif best_eval <= -100:  # smaller disadvantage
+                        increases_disadvantage_decent = (move_eval >= best_eval * 1.8)
                     else:
-                        increases_disadvantage_decent = move_eval >= best_eval * 1.5
+                        increases_disadvantage_decent = (move_eval >= best_eval * 2.2)
                     keeps_half_advantage = False
 
-                is_decent_move = keeps_half_advantage or not increases_disadvantage_decent
+                is_decent_move = keeps_half_advantage or increases_disadvantage_decent
             else:
                 is_decent_move = False
 
             # Score increases
             if is_top_move:
+                good_moves += 1
                 if board.gives_check(move) or board.is_capture(move):
                     top_moves += 1
             elif is_decent_move:
+                good_moves += 1
                 if board.gives_check(move) or board.is_capture(move):
                     decent_moves += 1
-
-        move_ease_score = (top_moves + 0.5 * decent_moves) / max(1, len(legal_moves))
+        move_ease_score = (top_moves + 0.4 * decent_moves) / max(1, good_moves)
 
         return move_ease_score
 
     move_ease = compute_move_ease(board, legal_moves, best_eval, evals_dict)
 
     # Material imbalance
-    material_white = sum(p.piece_type for p in board.piece_map().values() if p.color == chess.WHITE)
-    material_black = sum(p.piece_type for p in board.piece_map().values() if p.color == chess.BLACK)
-    material_imbalance = abs(material_white - material_black)
-    total_material = material_white + material_black
+    PIECE_VALUES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0}
+
+    player_color = board.turn
+    material_imbalance = sum(PIECE_VALUES[p.piece_type] if p.color == board.turn else -PIECE_VALUES[p.piece_type]
+                        for p in board.piece_map().values())
     # Count total number of pieces for both sides
     pieces_left = len(board.piece_map())
 
@@ -552,18 +568,40 @@ def compute_features(board, engine, depth=DEPTH):
     if board.turn == chess.BLACK:
         space_control = -space_control
 
-    passed_pawns = 0
-    for p in pawns:
-        f, r = chess.square_file(p), chess.square_rank(p)
-        ranks_ahead = range(r + 1, 8) if board.turn == chess.WHITE else range(0, r)
-        blocked = any(
-            board.piece_at(chess.square(f + dx, r_target)) and
-            board.piece_at(chess.square(f + dx, r_target)).piece_type == chess.PAWN
-            for dx in [-1, 0, 1] if 0 <= f + dx < 8
-            for r_target in ranks_ahead if 0 <= r_target < 8
-        )
-        if not blocked:
-            passed_pawns += 1
+    def weighted_passed_pawns(board, color):
+        pawns = [p for p in board.pieces(chess.PAWN, color)]
+        files = {}
+
+        # Group passed pawns by file
+        for p in pawns:
+            f, r = chess.square_file(p), chess.square_rank(p)
+            ranks_ahead = range(r + 1, 8) if color == chess.WHITE else range(0, r)
+            blocked = any(
+                board.piece_at(chess.square(f + dx, r_target)) and
+                board.piece_at(chess.square(f + dx, r_target)).piece_type == chess.PAWN and
+                board.piece_at(chess.square(f + dx, r_target)).color != color
+                for dx in [-1, 0, 1] if 0 <= f + dx < 8
+                for r_target in ranks_ahead if 0 <= r_target < 8
+            )
+            if not blocked:
+                files.setdefault(f, []).append(p)
+
+        score = 0
+        counted_files = set()
+        for f in files:
+            # Check for connected passed pawns on adjacent files
+            if f - 1 in files or f + 1 in files:
+                score += 1.25
+                counted_files.add(f)
+            elif f not in counted_files:
+                # Only single passed pawns on this file
+                score += min(len(files[f]) * 0.6, 2.5)  # If multiple pawns on same file, cap at 2.5
+                counted_files.add(f)
+        return score
+
+    passed_pawns = weighted_passed_pawns(board, chess.WHITE) - weighted_passed_pawns(board, chess.BLACK)
+    if not board.turn:
+        passed_pawns = -passed_pawns
 
     center_squares = [chess.D4, chess.E4, chess.D5, chess.E5]
 
@@ -593,6 +631,7 @@ def compute_features(board, engine, depth=DEPTH):
         "pawn_majority": pawn_majority,
         "mobility": mobility,
         "piece_coordination": piece_coordination,
+        "hanging_pieces": hanging_pieces,
         "rooks_connected": rooks_connected,
         "bishop_pair": bishop_pair,
         "overworked_defenders": overworked,
@@ -605,6 +644,7 @@ def compute_features(board, engine, depth=DEPTH):
         "space_control": space_control,
         "passed_pawns": passed_pawns,
         "center_control": center_control,
+        "stockfish_eval": stockfish_eval,
         "top_moves": [m.uci() for m in legal_moves],
         "evals_dict": {m.uci(): v for m, v in evals_dict.items()}
     }
