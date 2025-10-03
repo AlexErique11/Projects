@@ -42,10 +42,15 @@ def categorize_elo(avg_elo):
     else:
         return "2200+"
 
-# --- Ask user for FEN and Elo ---
+# --- Ask user for FEN, Elo, and time control ---
 fen = input("Enter a FEN: ")
 avg_elo = int(input("Enter average Elo: "))
 elo_range = categorize_elo(avg_elo)
+
+# Ask for time control
+time_control = input("Enter time control ('blitz' or 'rapid_classical'): ").strip().lower()
+if time_control not in ["blitz", "rapid_classical"]:
+    raise ValueError("Invalid time control. Must be 'blitz' or 'rapid_classical'.")
 
 # --- Start Stockfish & extract features ---
 board = chess.Board(fen)
@@ -67,16 +72,16 @@ for target in targets:
     X = pd.DataFrame([{k: features[k] for k in feature_cols}])
 
     # Load model
-    model_path = os.path.join(MODEL_DIR, f"model_{elo_range}_{target}.pkl")
+    model_path = os.path.join(MODEL_DIR, f"model_{elo_range}_{time_control}_{target}.pkl")
     if not os.path.exists(model_path):
-        raise ValueError(f"No trained model found for Elo range {elo_range}, target {target}")
+        raise ValueError(f"No trained model found for Elo range {elo_range}, time {time_control}, target {target}")
     model = joblib.load(model_path)
 
     # Predict
     predicted_score = model.predict(X)[0]
 
     # Fetch metrics
-    metrics = model_metrics.get(elo_range, {}).get(target, {})
+    metrics = model_metrics.get(elo_range, {}).get(time_control, {}).get(target, {})
     n_games = metrics.get("n_games", "unknown")
     n_positions = metrics.get("n_positions", "unknown")
     rmse = metrics.get("rmse", None)
@@ -88,7 +93,7 @@ for target in targets:
     print(f"Predicted score: {predicted_score:.4f}")
     if certainty is not None:
         print(f"Model certainty: {certainty*100:.1f}% (based on RMSE)")
-    print(f"Trained on: {n_games} games ({n_positions} positions) for Elo {elo_range}")
+    print(f"Trained on: {n_games} games ({n_positions} positions) for Elo {elo_range}, Time {time_control}")
 
 # --- Raw feature values ---
 print("\n--- Raw Features ---")

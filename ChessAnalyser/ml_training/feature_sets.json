@@ -8,7 +8,7 @@
     "800-1100": {
           "label_move_ease": [
               "volatility", "move_ease", "trap_susceptibility", "mobility", "piece_coordination",
-              "material_imbalance", "hanging_pieces", "material_imbalance", "stockfish_eval"
+              "material_imbalance", "hanging_pieces", "stockfish_eval"
           ]
     },
     "1100-1400": {
