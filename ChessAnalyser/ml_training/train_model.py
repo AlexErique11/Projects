@@ -69,7 +69,7 @@ def categorize_time_control(game_headers):
         return "rapid_classical"
 
 # --- Process new games ---
-MAX_GAMES = 100
+MAX_GAMES = 300
 game_count = 0
 positions = []
 
@@ -100,9 +100,9 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
                 except ValueError:
                     avg_elo = None
 
-            # if avg_elo is None or avg_elo < 800 or avg_elo >= 1100:
-            #     game = chess.pgn.read_game(text_stream)
-            #     continue
+            if avg_elo is None or avg_elo < 0 or avg_elo >= 800:
+                game = chess.pgn.read_game(text_stream)
+                continue
             # here
 
             # --- Determine time control ---
@@ -110,6 +110,9 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
             if time_control == "bullet":  # skip bullet games
                 game = chess.pgn.read_game(text_stream)
                 continue
+            # if time_control != "blitz":  # skip bullet games
+            #     game = chess.pgn.read_game(text_stream)
+            #     continue #hier
 
             board = game.board()
             game_positions = []
@@ -226,7 +229,7 @@ feature_cols = [
 
 targets = ["label_position_quality", "label_move_ease"]
 elo_ranges = df_features["elo_range"].unique()
-# elo_ranges = ["800-1100"]  # Only train on this Elo range here
+elo_ranges = ["800-"]  # Only train on this Elo range here
 
 models = {}
 model_metrics = {}
@@ -235,7 +238,14 @@ model_metrics = {}
 time_controls = ["blitz", "rapid_classical"]  # bullet is ignored
 
 for elo_range in elo_ranges:
+    if(elo_range != "800-"):
+        continue
+    # here
+
     for tc in time_controls:
+        # if(tc != "blitz"):
+        #     continue
+        #hier
         df_range = df_features[
             (df_features["elo_range"] == elo_range) &
             (df_features["time_control"] == tc)
