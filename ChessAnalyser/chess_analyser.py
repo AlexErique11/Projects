@@ -5,7 +5,10 @@ import pandas as pd
 import joblib
 import json
 import os
+import math
+from position_commentary import describe_position
 from ml_training.feature_extraction import compute_features
+
 
 # --- Paths ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -60,7 +63,23 @@ with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:
 # --- Targets ---
 targets = ["label_position_quality", "label_move_ease"]
 
-print("\n--- Human Playability ---")
+
+# --- Non-linear evaluation bar mapping ---
+def score_to_eval_bar(predicted_score, max_eval=10, extreme_scale=3):
+    """
+    Map 0-1 normalized score to non-linear, engine-style eval bar.
+    """
+    x = predicted_score - 0.5  # center at 0
+    sign = math.copysign(1, x)
+    abs_x = abs(x)
+    base_eval = max_eval * math.log1p(10 * abs_x) / math.log1p(10)
+    extreme_eval = (abs_x ** 2) * extreme_scale
+    eval_bar = sign * (base_eval + extreme_eval)
+    return eval_bar
+
+predicted_scores = {}
+
+# --- Predict each target ---
 for target in targets:
     # Select feature columns (fall back to default if not specified for this elo range)
     if elo_range in FEATURE_SETS and target in FEATURE_SETS[elo_range]:
@@ -79,6 +98,10 @@ for target in targets:
 
     # Predict
     predicted_score = model.predict(X)[0]
+    predicted_scores[target] = predicted_score
+
+    # Convert to eval bar
+    eval_bar = score_to_eval_bar(predicted_score, max_eval=10, extreme_scale=3)
 
     # Fetch metrics
     metrics = model_metrics.get(elo_range, {}).get(time_control, {}).get(target, {})
@@ -90,10 +113,21 @@ for target in targets:
     # Report
     label_name = "Position quality" if target == "label_position_quality" else "Move ease"
     print(f"\n[{label_name}]")
-    print(f"Predicted score: {predicted_score:.4f}")
+    print(f"Predicted score (eval bar): {eval_bar:.2f}")
     if certainty is not None:
         print(f"Model certainty: {certainty*100:.1f}% (based on RMSE)")
     print(f"Trained on: {n_games} games ({n_positions} positions) for Elo {elo_range}, Time {time_control}")
+
+# --- Generate position commentary ---
+eval_bars = {
+    "position_quality": predicted_scores.get("label_position_quality", 0),
+    "move_ease": predicted_scores.get("label_move_ease", 0)
+}
+
+# commentary = describe_position(features, eval_bars)
+# print("\n--- Position Commentary ---")
+# print(commentary)
+
 
 # --- Raw feature values ---
 print("\n--- Raw Features ---")
