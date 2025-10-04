@@ -1,0 +1,14 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.chessanalyser.app
+productName: Chess Analyser
+files:
+  - filter:
+      - dist/**
+      - electron/**
+      - package.json
+win:
+  target: nsis
+  signAndEditExecutable: false
+electronVersion: 38.2.1
