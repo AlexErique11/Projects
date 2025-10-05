@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Save, Loader2 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 
-const BROWSERS = ['Chrome', 'Brave', 'Firefox', 'Safari', 'Edge', 'Opera'];
 const TIME_CONTROLS = [
   { value: 'blitz', label: 'Blitz' },
   { value: 'rapid_classical', label: 'Rapid/Classical' }
@@ -84,26 +83,6 @@ export default function SettingsPage() {
             </select>
             <p className="text-sm text-slate-500 mt-2">
               Choose the time control for ML model selection (Blitz vs Rapid/Classical)
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              🌐 Default Browser
-            </label>
-            <select
-              value={settings.defaultBrowser}
-              onChange={(e) => updateSettings({ defaultBrowser: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            >
-              {BROWSERS.map((browser) => (
-                <option key={browser} value={browser}>
-                  {browser}
-                </option>
-              ))}
-            </select>
-            <p className="text-sm text-slate-500 mt-2">
-              Choose your preferred browser for opening chess.com
             </p>
           </div>
 

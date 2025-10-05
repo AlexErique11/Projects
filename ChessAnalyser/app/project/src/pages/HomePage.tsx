@@ -8,7 +8,7 @@ import PositionInfo from '../components/PositionInfo';
 import { parseFEN, boardToFEN, getActivePlayerFromFEN, STARTING_FEN } from '../utils/fenParser';
 import { isValidMove, makeMove, isInCheck, wouldBeInCheck } from '../utils/chessLogic';
 import { Board } from '../types/chess';
-import { analyzePosition, AnalysisResult } from '../utils/chessAnalyserApi';
+import { analyzePosition } from '../utils/chessAnalyserApi';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function HomePage() {
@@ -230,22 +230,22 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Control Panel - Fixed Width */}
-          <div className="w-80 ml-8 space-y-4 flex-shrink-0">
+          {/* Control Panel - Responsive Width */}
+          <div className="w-80 lg:w-80 md:w-72 sm:w-64 ml-8 lg:ml-8 md:ml-6 sm:ml-4 space-y-4 flex-shrink-0">
             <FenInput onFenSubmit={handleFenSubmit} currentFen={currentFen} onResetBoard={handleResetBoard} />
-            
+
             {/* Analysis Status */}
             <div className="bg-white p-4 rounded-lg shadow-lg">
               <h3 className="text-lg font-semibold text-slate-800 mb-3">🧠 ML Analysis Status</h3>
-              
-              <div className={`text-sm p-3 rounded transition-colors duration-300 h-32 ${
-                isAnalyzing ? 'bg-blue-50 border border-blue-200' : 
+
+              <div className={`text-sm p-3 rounded transition-colors duration-300 min-h-[200px] ${
+                isAnalyzing ? 'bg-blue-50 border border-blue-200' :
                 analysisError ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'
               }`}>
                 <div className="space-y-2 h-full flex flex-col justify-between">
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <strong>🏆 Player Elo:</strong> 
+                      <strong>🏆 Player Elo:</strong>
                       <span>{settings.playerElo}</span>
                     </div>
                     <div className="flex justify-between">
@@ -271,8 +271,11 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="mt-3 pt-2 border-t border-slate-200 text-xs text-slate-600">
-                  ℹ️ Auto-updates when position, Elo, or time control changes.<br/>
-                  🛠️ Change settings in the Settings page.
+                  <div className="break-words">
+                    ℹ️ Auto-updates when position, Elo, or time control changes.
+                    <br/>
+                    🛠️ Change settings in the Settings page.
+                  </div>
                 </div>
               </div>
             </div>

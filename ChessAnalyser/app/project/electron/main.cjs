@@ -1,7 +1,7 @@
 // Electron main process
 // CommonJS to align with package.json "main": "electron/main.cjs"
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 

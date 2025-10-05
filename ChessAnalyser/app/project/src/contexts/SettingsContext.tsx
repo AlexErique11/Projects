@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface Settings {
   playerElo: number;
   timeControl: string;
-  defaultBrowser: string;
 }
 
 interface SettingsContextType {
@@ -14,8 +13,7 @@ interface SettingsContextType {
 
 const defaultSettings: Settings = {
   playerElo: 1500,
-  timeControl: 'blitz',
-  defaultBrowser: 'Chrome'
+  timeControl: 'blitz'
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
