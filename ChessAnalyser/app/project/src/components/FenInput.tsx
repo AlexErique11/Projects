@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X, Copy, RotateCcw } from 'lucide-react';
 
 interface FenInputProps {
   onFenSubmit: (fen: string) => void;
   currentFen: string;
+  onResetBoard: () => void;
 }
 
-export default function FenInput({ onFenSubmit, currentFen }: FenInputProps) {
+export default function FenInput({ onFenSubmit, currentFen, onResetBoard }: FenInputProps) {
   const [fenInput, setFenInput] = useState('');
   const [error, setError] = useState('');
 
@@ -56,13 +57,21 @@ export default function FenInput({ onFenSubmit, currentFen }: FenInputProps) {
         Load Position
       </button>
 
-      <div className="pt-4 border-t border-slate-200">
-        <label className="block text-sm font-medium text-slate-600 mb-2">
-          Current FEN
-        </label>
-        <div className="p-3 bg-slate-50 rounded-lg">
-          <code className="text-xs text-slate-700 break-all">{currentFen}</code>
-        </div>
+      <div className="pt-4 border-t border-slate-200 space-y-2">
+        <button
+          onClick={() => navigator.clipboard.writeText(currentFen)}
+          className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-slate-300"
+        >
+          <Copy size={18} />
+          Copy Current FEN
+        </button>
+        <button
+          onClick={onResetBoard}
+          className="w-full py-2 px-4 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-orange-300"
+        >
+          <RotateCcw size={18} />
+          Reset to Start Position
+        </button>
       </div>
     </div>
   );

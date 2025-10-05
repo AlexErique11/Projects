@@ -7,14 +7,15 @@ interface ChessBoardProps {
   onMove: (fromRow: number, fromCol: number, toRow: number, toCol: number) => boolean;
   currentTurn: 'white' | 'black';
   isInCheck: boolean;
+  flipped?: boolean;
 }
 
 const pieceSymbols: Record<PieceType, string> = {
-  'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟',
+  'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♙', // Use white pawn symbol for consistency
   'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
 };
 
-export default function ChessBoard({ board, onMove, currentTurn, isInCheck }: ChessBoardProps) {
+export default function ChessBoard({ board, onMove, currentTurn, isInCheck, flipped = false }: ChessBoardProps) {
   const [selectedSquare, setSelectedSquare] = useState<[number, number] | null>(null);
   const [validMoves, setValidMoves] = useState<Set<string>>(new Set());
 
@@ -59,19 +60,28 @@ export default function ChessBoard({ board, onMove, currentTurn, isInCheck }: Ch
     setValidMoves(moves);
   };
 
+  // Create board display order based on flip state
+  const displayBoard = flipped 
+    ? board.slice().reverse().map(row => row.slice().reverse())
+    : board;
+
   return (
     <div className="inline-block shadow-2xl rounded-lg overflow-hidden border-4 border-cyan-500">
       <div className="grid grid-cols-8 gap-0">
-        {board.map((row, rowIndex) =>
-          row.map((piece, colIndex) => {
-            const isLight = (rowIndex + colIndex) % 2 === 0;
-            const isSelected = selectedSquare && selectedSquare[0] === rowIndex && selectedSquare[1] === colIndex;
-            const isValidMoveSquare = validMoves.has(`${rowIndex}-${colIndex}`);
+        {displayBoard.map((row, displayRowIndex) =>
+          row.map((piece, displayColIndex) => {
+            // Calculate actual board coordinates from display coordinates
+            const actualRowIndex = flipped ? 7 - displayRowIndex : displayRowIndex;
+            const actualColIndex = flipped ? 7 - displayColIndex : displayColIndex;
+            
+            const isLight = (actualRowIndex + actualColIndex) % 2 === 0;
+            const isSelected = selectedSquare && selectedSquare[0] === actualRowIndex && selectedSquare[1] === actualColIndex;
+            const isValidMoveSquare = validMoves.has(`${actualRowIndex}-${actualColIndex}`);
 
             return (
               <div
-                key={`${rowIndex}-${colIndex}`}
-                onClick={() => handleSquareClick(rowIndex, colIndex)}
+                key={`${actualRowIndex}-${actualColIndex}`}
+                onClick={() => handleSquareClick(actualRowIndex, actualColIndex)}
                 className={`w-16 h-16 flex items-center justify-center text-5xl transition-all cursor-pointer relative ${
                   isSelected
                     ? 'bg-cyan-400 ring-4 ring-cyan-500'

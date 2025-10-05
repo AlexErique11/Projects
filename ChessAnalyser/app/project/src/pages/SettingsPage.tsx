@@ -1,61 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Save, Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useSettings } from '../contexts/SettingsContext';
 
 const BROWSERS = ['Chrome', 'Brave', 'Firefox', 'Safari', 'Edge', 'Opera'];
+const TIME_CONTROLS = [
+  { value: 'blitz', label: 'Blitz' },
+  { value: 'rapid_classical', label: 'Rapid/Classical' }
+];
 
 export default function SettingsPage() {
-  const [elo, setElo] = useState(1500);
-  const [defaultBrowser, setDefaultBrowser] = useState('Chrome');
-  const [loading, setLoading] = useState(true);
+  const { settings, updateSettings, isLoading } = useSettings();
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('settings')
-        .select('*')
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        setElo(data.elo);
-        setDefaultBrowser(data.default_browser);
-      }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const saveSettings = async () => {
     setSaving(true);
     try {
-      const { data: existing } = await supabase
-        .from('settings')
-        .select('id')
-        .maybeSingle();
-
-      if (existing) {
-        const { error } = await supabase
-          .from('settings')
-          .update({ elo, default_browser: defaultBrowser })
-          .eq('id', existing.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('settings')
-          .insert({ elo, default_browser: defaultBrowser });
-
-        if (error) throw error;
-      }
+      // Settings are automatically saved via the context
+      // This just provides user feedback
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate save time
+      console.log('✅ Settings saved:', settings);
     } catch (error) {
       console.error('Error saving settings:', error);
     } finally {
@@ -63,7 +26,7 @@ export default function SettingsPage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex-1 bg-gradient-to-br from-orange-50 via-pink-50 to-rose-50 p-8 flex items-center justify-center">
         <Loader2 className="animate-spin text-orange-400" size={40} />
@@ -79,38 +42,58 @@ export default function SettingsPage() {
         <div className="bg-white rounded-lg shadow-lg p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Player ELO Rating
+              🏆 Player ELO Rating
             </label>
             <div className="flex items-center gap-4">
               <input
                 type="range"
                 min="800"
                 max="3000"
-                value={elo}
-                onChange={(e) => setElo(parseInt(e.target.value))}
+                value={settings.playerElo}
+                onChange={(e) => updateSettings({ playerElo: parseInt(e.target.value) })}
                 className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
               />
               <input
                 type="number"
                 min="800"
                 max="3000"
-                value={elo}
-                onChange={(e) => setElo(parseInt(e.target.value))}
+                value={settings.playerElo}
+                onChange={(e) => updateSettings({ playerElo: parseInt(e.target.value) || 1500 })}
                 className="w-24 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
             </div>
             <p className="text-sm text-slate-500 mt-2">
-              Set your chess rating (800 - 3000)
+              Your chess rating affects which ML models are used for analysis (800 - 3000)
             </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Default Browser
+              ⏱️ Time Control
             </label>
             <select
-              value={defaultBrowser}
-              onChange={(e) => setDefaultBrowser(e.target.value)}
+              value={settings.timeControl}
+              onChange={(e) => updateSettings({ timeControl: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            >
+              {TIME_CONTROLS.map((tc) => (
+                <option key={tc.value} value={tc.value}>
+                  {tc.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-sm text-slate-500 mt-2">
+              Choose the time control for ML model selection (Blitz vs Rapid/Classical)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              🌐 Default Browser
+            </label>
+            <select
+              value={settings.defaultBrowser}
+              onChange={(e) => updateSettings({ defaultBrowser: e.target.value })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             >
               {BROWSERS.map((browser) => (

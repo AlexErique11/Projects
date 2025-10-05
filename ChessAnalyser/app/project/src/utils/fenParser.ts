@@ -19,7 +19,12 @@ export function parseFEN(fen: string): Board {
   return board;
 }
 
-export function boardToFEN(board: Board): string {
+export function getActivePlayerFromFEN(fen: string): 'white' | 'black' {
+  const parts = fen.split(' ');
+  return parts[1] === 'w' ? 'white' : 'black';
+}
+
+export function boardToFEN(board: Board, activePlayer: 'white' | 'black' = 'white'): string {
   const rows: string[] = [];
 
   for (let i = 0; i < 8; i++) {
@@ -45,7 +50,8 @@ export function boardToFEN(board: Board): string {
     rows.push(row);
   }
 
-  return rows.join('/') + ' w KQkq - 0 1';
+  const activePlayerChar = activePlayer === 'white' ? 'w' : 'b';
+  return rows.join('/') + ` ${activePlayerChar} KQkq - 0 1`;
 }
 
 export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';

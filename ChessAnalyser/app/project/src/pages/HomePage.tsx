@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RotateCcw } from 'lucide-react';
 import ChessBoard from '../components/ChessBoard';
 import MoveControls from '../components/MoveControls';
 import FenInput from '../components/FenInput';
-import { parseFEN, boardToFEN, STARTING_FEN } from '../utils/fenParser';
+import EvalBar from '../components/EvalBar';
+import PositionInfo from '../components/PositionInfo';
+import { parseFEN, boardToFEN, getActivePlayerFromFEN, STARTING_FEN } from '../utils/fenParser';
 import { isValidMove, makeMove, isInCheck, wouldBeInCheck } from '../utils/chessLogic';
 import { Board } from '../types/chess';
+import { analyzePosition, AnalysisResult } from '../utils/chessAnalyserApi';
+import { useSettings } from '../contexts/SettingsContext';
 
 export default function HomePage() {
+  const { settings } = useSettings();
   const [board, setBoard] = useState<Board>(parseFEN(STARTING_FEN));
   const [currentMove, setCurrentMove] = useState(0);
   const [positions, setPositions] = useState<string[]>([STARTING_FEN]);
@@ -15,16 +20,35 @@ export default function HomePage() {
   const [currentTurn, setCurrentTurn] = useState<'white' | 'black'>('white');
   const [whiteInCheck, setWhiteInCheck] = useState(false);
   const [blackInCheck, setBlackInCheck] = useState(false);
+  const [positionQuality, setPositionQuality] = useState<number>(0);
+  const [moveEase, setMoveEase] = useState<number>(0);
+  const [analysisFeatures, setAnalysisFeatures] = useState<Record<string, number | string>>({});
+  const [eloRange, setEloRange] = useState<string>('1400-1600');
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [boardFlipped, setBoardFlipped] = useState<boolean>(false);
 
   useEffect(() => {
     const fen = positions[currentMove];
     const newBoard = parseFEN(fen);
+    const activePlayer = getActivePlayerFromFEN(fen);
     setBoard(newBoard);
     setCurrentFen(fen);
+    setCurrentTurn(activePlayer);
 
     setWhiteInCheck(isInCheck(newBoard, true));
     setBlackInCheck(isInCheck(newBoard, false));
   }, [currentMove, positions]);
+
+  // Separate useEffect for analysis with debouncing to avoid too many rapid calls
+  useEffect(() => {
+    const analysisTimeout = setTimeout(() => {
+      console.log(`🔄 Triggering re-analysis: FEN=${currentFen.slice(0, 50)}..., Elo=${settings.playerElo}, TimeControl=${settings.timeControl}`);
+      performAnalysis(currentFen);
+    }, 300); // 300ms debounce to prevent rapid successive calls
+
+    return () => clearTimeout(analysisTimeout);
+  }, [currentFen, settings.timeControl, settings.playerElo]);
 
   const handleMove = (fromRow: number, fromCol: number, toRow: number, toCol: number): boolean => {
     const piece = board[fromRow][fromCol];
@@ -44,13 +68,14 @@ export default function HomePage() {
     }
 
     const newBoard = makeMove(board, fromRow, fromCol, toRow, toCol);
-    const newFen = boardToFEN(newBoard);
+    const newTurn = currentTurn === 'white' ? 'black' : 'white';
+    const newFen = boardToFEN(newBoard, newTurn);
 
     setBoard(newBoard);
     setPositions([...positions.slice(0, currentMove + 1), newFen]);
     setCurrentMove(currentMove + 1);
     setCurrentFen(newFen);
-    setCurrentTurn(currentTurn === 'white' ? 'black' : 'white');
+    setCurrentTurn(newTurn);
 
     setWhiteInCheck(isInCheck(newBoard, true));
     setBlackInCheck(isInCheck(newBoard, false));
@@ -61,12 +86,51 @@ export default function HomePage() {
   const handleFenSubmit = (fen: string) => {
     try {
       const newBoard = parseFEN(fen);
+      const activePlayer = getActivePlayerFromFEN(fen);
       setBoard(newBoard);
       setPositions([...positions.slice(0, currentMove + 1), fen]);
       setCurrentMove(currentMove + 1);
       setCurrentFen(fen);
+      setCurrentTurn(activePlayer);
     } catch (error) {
       console.error('Invalid FEN:', error);
+    }
+  };
+
+  const handleResetBoard = () => {
+    setBoard(parseFEN(STARTING_FEN));
+    setPositions([STARTING_FEN]);
+    setCurrentMove(0);
+    setCurrentFen(STARTING_FEN);
+    setCurrentTurn('white');
+    setWhiteInCheck(false);
+    setBlackInCheck(false);
+    // Reset analysis data
+    setPositionQuality(0);
+    setMoveEase(0);
+    setAnalysisFeatures({});
+  };
+
+  const performAnalysis = async (fen: string) => {
+    try {
+      setIsAnalyzing(true);
+      setAnalysisError(null);
+      console.log(`🧠 Starting ML analysis for Elo ${settings.playerElo} (${settings.timeControl})...`);
+      
+      const result = await analyzePosition(fen, settings.playerElo, settings.timeControl);
+      
+      console.log(`✅ Analysis complete: PosQuality=${result.position_quality.toFixed(2)}, MoveEase=${result.move_ease.toFixed(2)}, EloRange=${result.elo_range}`);
+      
+      setPositionQuality(result.position_quality);
+      setMoveEase(result.move_ease);
+      setAnalysisFeatures(result.features);
+      setEloRange(result.elo_range);
+    } catch (error) {
+      console.error('❌ Analysis failed:', error);
+      setAnalysisError(error instanceof Error ? error.message : 'Analysis failed');
+      // Keep previous values on error, don't reset to 0
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -91,26 +155,127 @@ export default function HomePage() {
                 Check!
               </div>
             )}
+            <PositionInfo
+              features={analysisFeatures}
+              eloRange={eloRange}
+              timeControl={settings.timeControl}
+            />
           </div>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex gap-6 items-start justify-center min-h-[600px]">
+          {/* Left Evaluation Bar - Position Quality */}
+          <div className="flex flex-col items-center">
+            <div className={`transition-opacity duration-300 ${
+              isAnalyzing ? 'opacity-60' : 'opacity-100'
+            }`}>
+              <EvalBar
+                value={boardFlipped ? -positionQuality : positionQuality}
+                label="Position Quality"
+              />
+            </div>
+            <div className="mt-2 h-5 flex items-center justify-center w-24">
+              {isAnalyzing && (
+                <div className="text-xs text-blue-600 animate-pulse font-medium whitespace-nowrap">
+                  🔄 Analyzing...
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Chess Board and Controls */}
           <div className="flex flex-col items-center gap-6">
             <ChessBoard
               board={board}
               onMove={handleMove}
               currentTurn={currentTurn}
               isInCheck={currentPlayerInCheck}
+              flipped={boardFlipped}
             />
-            <MoveControls
-              currentMove={currentMove}
-              totalMoves={positions.length - 1}
-              onMoveChange={setCurrentMove}
-            />
+            <div className="flex items-center gap-4">
+              <MoveControls
+                currentMove={currentMove}
+                totalMoves={positions.length - 1}
+                onMoveChange={setCurrentMove}
+              />
+              <button
+                onClick={() => setBoardFlipped(!boardFlipped)}
+                className="p-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                title={boardFlipped ? "View from White's perspective" : "View from Black's perspective"}
+              >
+                <RotateCcw size={18} className="text-slate-600" />
+                <span className="text-sm font-medium text-slate-700">
+                  {boardFlipped ? 'White View' : 'Black View'}
+                </span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 max-w-md">
-            <FenInput onFenSubmit={handleFenSubmit} currentFen={currentFen} />
+          {/* Right Evaluation Bar - Move Ease */}
+          <div className="flex flex-col items-center">
+            <div className={`transition-opacity duration-300 ${
+              isAnalyzing ? 'opacity-60' : 'opacity-100'
+            }`}>
+              <EvalBar
+                value={boardFlipped ? -moveEase : moveEase}
+                label="Move Ease"
+              />
+            </div>
+            <div className="mt-2 h-5 flex items-center justify-center w-24">
+              {isAnalyzing && (
+                <div className="text-xs text-blue-600 animate-pulse font-medium whitespace-nowrap">
+                  🔄 Analyzing...
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Control Panel - Fixed Width */}
+          <div className="w-80 ml-8 space-y-4 flex-shrink-0">
+            <FenInput onFenSubmit={handleFenSubmit} currentFen={currentFen} onResetBoard={handleResetBoard} />
+            
+            {/* Analysis Status */}
+            <div className="bg-white p-4 rounded-lg shadow-lg">
+              <h3 className="text-lg font-semibold text-slate-800 mb-3">🧠 ML Analysis Status</h3>
+              
+              <div className={`text-sm p-3 rounded transition-colors duration-300 h-32 ${
+                isAnalyzing ? 'bg-blue-50 border border-blue-200' : 
+                analysisError ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'
+              }`}>
+                <div className="space-y-2 h-full flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <strong>🏆 Player Elo:</strong> 
+                      <span>{settings.playerElo}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <strong>⏱️ Time Control:</strong>
+                      <span>{settings.timeControl === 'blitz' ? 'Blitz' : 'Rapid/Classical'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <strong>📁 Model Range:</strong>
+                      <span>{eloRange}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <strong>🔄 Status:</strong>
+                      <span className="min-w-[80px] text-right">{
+                        isAnalyzing ? (
+                          <span className="text-blue-600 animate-pulse">Analyzing...</span>
+                        ) : analysisError ? (
+                          <span className="text-red-600">❌ Error</span>
+                        ) : (
+                          <span className="text-green-600">✅ Ready</span>
+                        )
+                      }</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-200 text-xs text-slate-600">
+                  ℹ️ Auto-updates when position, Elo, or time control changes.<br/>
+                  🛠️ Change settings in the Settings page.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

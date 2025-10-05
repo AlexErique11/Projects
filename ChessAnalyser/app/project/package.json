@@ -12,12 +12,16 @@
     "build": "npm run build:renderer",
     "build:app": "npm run build:renderer && electron-builder",
     "start": "electron .",
+    "backend": "node chess-analyzer-backend.js",
+    "dev:backend": "nodemon chess-analyzer-backend.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -29,6 +33,7 @@
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
     "concurrently": "^9.2.1",
+    "nodemon": "^3.0.1",
     "electron": "^38.2.1",
     "electron-builder": "^26.0.12",
     "eslint": "^9.9.1",
