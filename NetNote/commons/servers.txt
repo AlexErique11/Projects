@@ -1,3 +1,0 @@
-MainServer 8080
-SecondServer 8090
-ThirdServer 8070
