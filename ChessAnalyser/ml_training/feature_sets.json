@@ -5,37 +5,6 @@
             "mobility", "hanging_pieces", "material_imbalance", "stockfish_eval"
         ]
     },
-    "800-1100": {
-          "label_move_ease": [
-              "volatility", "move_ease", "trap_susceptibility", "mobility", "piece_coordination",
-              "material_imbalance", "hanging_pieces", "stockfish_eval"
-          ]
-    },
-    "1100-1400": {
-        "label_move_ease": [
-            "volatility", "move_ease", "trap_susceptibility",
-            "mobility", "piece_coordination", "rooks_connected", "bishop_pair",
-            "material_imbalance", "hanging_pieces",
-            "phase", "space_control", "passed_pawns", "stockfish_eval"
-        ]
-    },
-    "1400-1600": {
-        "label_move_ease": [
-            "volatility", "move_ease", "trap_susceptibility",
-            "mobility", "piece_coordination", "hanging_pieces",
-            "overworked_defenders", "material_imbalance",
-            "passed_pawns", "stockfish_eval"
-        ]
-    },
-    "1600-1800": {
-        "label_move_ease": [
-            "volatility", "move_ease", "trap_susceptibility",
-            "doubled_pawns", "backward_pawns",
-            "mobility", "piece_coordination", "hanging_pieces",
-            "overworked_defenders", "material_imbalance",
-            "phase", "space_control", "passed_pawns", "stockfish_eval"
-        ]
-    },
     "2000-2200": {
         "label_position_quality": [
             "volatility", "king_exposure",
@@ -43,13 +12,6 @@
             "mobility", "piece_coordination", "hanging_pieces", "rooks_connected", "bishop_pair",
             "overworked_defenders", "material_imbalance",
             "phase", "space_control", "passed_pawns", "center_control", "stockfish_eval"
-        ],
-        "label_move_ease": [
-            "volatility", "move_ease", "trap_susceptibility", "king_exposure",
-            "doubled_pawns", "backward_pawns", "pawn_majority",
-            "mobility", "piece_coordination",
-            "overworked_defenders", "material_imbalance",
-            "space_control", "passed_pawns", "stockfish_eval"
         ]
     },
     "2200+": {
@@ -59,28 +21,21 @@
             "mobility", "piece_coordination", "hanging_pieces", "rooks_connected", "bishop_pair",
             "overworked_defenders", "material_imbalance",
             "phase", "space_control", "passed_pawns", "center_control", "stockfish_eval"
-        ],
-        "label_move_ease": [
-            "volatility", "move_ease", "trap_susceptibility", "king_exposure",
-            "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
-            "mobility", "piece_coordination",
-            "overworked_defenders", "material_imbalance",
-            "space_control", "passed_pawns", "stockfish_eval"
         ]
     },
     "default": {
         "label_position_quality": [
-            "volatility", "move_ease", "trap_susceptibility", "king_exposure",
+            "volatility", "king_exposure",
             "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
             "mobility", "piece_coordination", "hanging_pieces", "rooks_connected", "bishop_pair",
-            "overworked_defenders", "pins", "tactical_motifs", "material_imbalance",
+            "overworked_defenders", "material_imbalance",
             "phase", "space_control", "passed_pawns", "center_control", "stockfish_eval"
         ],
         "label_move_ease": [
             "volatility", "move_ease", "trap_susceptibility", "king_exposure",
             "defending_pieces", "doubled_pawns", "backward_pawns", "pawn_majority",
-            "mobility", "piece_coordination", "rooks_connected", "bishop_pair",
-            "overworked_defenders", "pins", "tactical_motifs", "material_imbalance",
+            "mobility", "piece_coordination", "hanging_pieces", "rooks_connected", "bishop_pair",
+            "overworked_defenders", "material_imbalance",
             "phase", "space_control", "passed_pawns", "center_control", "stockfish_eval"
         ]
     }

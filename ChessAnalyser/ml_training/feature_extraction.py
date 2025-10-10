@@ -445,17 +445,17 @@ def compute_features(board, engine, depth=DEPTH):
                 keeps_advantage = eval_at_lower_depth >= lower_best_eval * (
                             1 + 0.2) if lower_best_eval <= -300 else eval_at_lower_depth >= lower_best_eval * (1 + 0.4)
 
-            if eval_at_lower_depth == 100000 or -100000:
+            if eval_at_lower_depth == MATE_SCORE or -MATE_SCORE:
                 keeps_advantage = True
             if keeps_advantage:
                 candidate_moves += 1
 
                 # Step 3: Check deeper evaluation
                 deeper_eval = evals_dict.get(chess.Move.from_uci(str(move_uci)))
-                if eval_at_lower_depth == 100000:
+                if eval_at_lower_depth == MATE_SCORE:
                     trap_moves += 1
                     continue
-                if eval_at_lower_depth == -100000 and deeper_eval < 200:
+                if eval_at_lower_depth == -MATE_SCORE and deeper_eval < 200:
                     trap_moves += 1
                     continue
                 # Trap detection: deeper eval significantly worse

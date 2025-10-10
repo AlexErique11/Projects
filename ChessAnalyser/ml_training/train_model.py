@@ -30,8 +30,10 @@ FEATURES_CSV = os.path.join(SCRIPT_DIR, "features.csv")
 MODEL_DIR = os.path.join(SCRIPT_DIR, "elo_models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-MAX_GAMES = 3
+MAX_GAMES = 5000
 N_CORES = 6
+DEPTH = 6
+MATE_SCORE1 = 40000
 
 # --- Functions ---
 def categorize_time_control(game_headers):
@@ -114,8 +116,8 @@ def process_game(game_data):
             return []
 
         for move in game.mainline_moves():
-            info = engine.analyse(board, chess.engine.Limit(depth=6))
-            eval_score = info["score"].pov(board.turn).score(mate_score=10000)
+            info = engine.analyse(board, chess.engine.Limit(depth=DEPTH))
+            eval_score = info["score"].pov(board.turn).score(mate_score=MATE_SCORE1)
             eval_list.append(eval_score)
 
             features = compute_features(board, engine)
@@ -131,18 +133,27 @@ def process_game(game_data):
             # --- Move ease label ---
             best_move = info["pv"][0] if "pv" in info else None
             if best_move is not None:
-                board.push(best_move)
-                best_info = engine.analyse(board, chess.engine.Limit(depth=6))
+                # Evaluate after the human move
+                board.push(move)
+                info_human = engine.analyse(board, chess.engine.Limit(depth=DEPTH))
+                eval_human = info_human["score"].pov(board.turn).score(mate_score=MATE_SCORE1)
                 board.pop()
-                best_eval_score = best_info["score"].pov(board.turn).score(mate_score=10000)
-                diff = abs(best_eval_score - eval_score)
+
+                # Evaluate after Stockfish's best move
+                board.push(best_move)
+                info_best = engine.analyse(board, chess.engine.Limit(depth=DEPTH))
+                eval_best = info_best["score"].pov(board.turn).score(mate_score=MATE_SCORE1)
+                board.pop()
+
+                # Difference between the two resulting positions
+                diff = abs(eval_best - eval_human)
                 move_ease = 1 / (1 + diff / 100)
             else:
                 move_ease = 0.5
-            features["label_move_ease"] = move_ease
 
+            features["label_move_ease"] = move_ease
             game_positions.append(features)
-            board.push(move)
+            board.push(move)  # finally play the human move
 
         for pos_features in game_positions:
             pos_features["eval_list"] = json.dumps(eval_list)
@@ -207,7 +218,7 @@ if __name__ == "__main__":
     # --- Compute position quality labels ---
     df_features["move_index"] = df_features.groupby("game_number").cumcount()
     df_features["label_position_quality"] = [
-        eval_change_score(eval_list, idx, lookahead=10)
+        eval_change_score(eval_list, idx)
         for eval_list, idx in zip(df_features["eval_list"], df_features["move_index"])
     ]
     df_features["elo_range"] = df_features["avg_elo"].apply(categorize_elo)
