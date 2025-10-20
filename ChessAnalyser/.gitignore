@@ -15,9 +15,9 @@ env/
 .venv
 
 # ML Training Data & Models
-ml_training/features.csv
-ml_training/elo_models/*.pkl
-ml_training/elo_models/model_*.pkl
+#ml_training/features.csv
+#ml_training/elo_models/*.pkl
+#ml_training/elo_models/model_*.pkl
 *.joblib
 *.h5
 *.hdf5

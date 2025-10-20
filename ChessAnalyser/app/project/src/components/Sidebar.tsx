@@ -15,7 +15,7 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   return (
     <div className="w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white h-screen flex flex-col shadow-2xl">
       <div className="p-6 border-b border-cyan-500/30">
-        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">Chess App</h1>
+        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">IntuiChess</h1>
       </div>
 
       <nav className="flex-1 p-4">
@@ -41,7 +41,7 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-cyan-500/30">
-        <p className="text-xs text-cyan-400/80">Ready to connect to your Python project</p>
+        <p className="text-xs text-cyan-400/80">Analyse your position with IntuiChess</p>
       </div>
     </div>
   );

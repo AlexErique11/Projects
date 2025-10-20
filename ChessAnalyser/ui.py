@@ -52,7 +52,7 @@ ctk.set_default_color_theme("blue")
 class ChessAnalyserUI(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Chess Analyzer - Advanced Position Analysis")
+        self.title("IntuiChess - Advanced Position Analysis")
         self.geometry("1500x800")
         self.minsize(1300, 700)
 
