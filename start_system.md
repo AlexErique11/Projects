@@ -17,19 +17,19 @@ The system is now fully integrated! Here's how each component works:
 
 #### Terminal 1 - Start Backend:
 ```bash
-cd "C:\Users\alexa\OneDrive\Desktop\projects\ChessAnalyser\app\project"
+cd "C:\Users\alexa\OneDrive\Desktop\projects\IntuiChess\app\project"
 node chess-analyzer-backend.js
 ```
 
 #### Terminal 2 - Start Frontend:
 ```bash
-cd "C:\Users\alexa\OneDrive\Desktop\projects\ChessAnalyser\app\project"  
+cd "C:\Users\alexa\OneDrive\Desktop\projects\IntuiChess\app\project"
 npm run dev
 ```
 
 #### Test the Python Wrapper directly:
 ```bash
-python "C:\Users\alexa\OneDrive\Desktop\projects\ChessAnalyser\chess_analyzer_wrapper.py" "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" 1500 blitz
+python "C:\Users\alexa\OneDrive\Desktop\projects\IntuiChess\chess_analyzer_wrapper.py" "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" 1500 blitz
 ```
 
 ### 📊 What You'll See

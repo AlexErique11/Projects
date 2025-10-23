@@ -119,26 +119,34 @@ The application will automatically download the ML models (~200-500MB) on first 
 ## 📁 Project Structure
 
 ```
-ChessAnalyser/
+.
 ├── README.md                    # Project documentation
-├── chess_analyser.py           # Original command-line prototype
-├── app/project/                # Desktop application
+├── app/project/                 # Desktop application
 │   ├── src/
-│   │   ├── components/         # React UI components
-│   │   ├── utils/              # Chess logic and ML integration
-│   │   └── pages/              # Application screens
-│   ├── electron/               # Desktop app configuration
-│   │   ├── main.cjs           # Electron main process
-│   │   ├── preload.cjs        # IPC communication layer
-│   │   └── asset-manager.js   # ML model download management
-│   └── package.json            # Node.js dependencies
-└── ml_training/                # Machine learning research
-    ├── feature_extraction.py   # Chess feature engineering (40+ features)
-    ├── train_model.py          # Model training pipeline
-    ├── features.csv            # Processed training data (1B+ positions)
-    ├── elo_models/             # Trained models by skill level
-    ├── feature_sets.json       # Elo-specific feature selection
-    └── human_playability_model.json # Model architecture definition
+│   │   ├── components/          # React UI components
+│   │   ├── utils/               # Chess logic and ML integration
+│   │   └── pages/               # Application screens
+│   ├── electron/                # Desktop app configuration
+│   │   ├── main.cjs             # Electron main process
+│   │   ├── preload.cjs          # IPC communication layer
+│   │   └── asset-manager.js     # ML model download management
+│   └── package.json             # Node.js dependencies
+├── chess_analyser.py            # Original command-line prototype
+├── chess_analyzer_wrapper.py    # Python-Electron integration layer
+├── ml_training/                 # Machine learning research
+│   ├── feature_extraction.py    # Chess feature engineering (40+ features)
+│   ├── train_model.py           # Model training pipeline
+│   ├── features.csv             # Processed training data (1B+ positions)
+│   ├── elo_models/              # Trained models by skill level
+│   ├── feature_sets.json        # Elo-specific feature selection
+│   └── human_playability_model.json # Model architecture definition
+├── pieces/                      # Chess piece images
+├── position_commentary.py       # Position insights powered by ML models
+├── start.bat                    # Windows helper script
+├── start_system.md              # System setup instructions
+├── ui.py                        # Tkinter-based UI prototype
+├── .gitignore                   # Git ignore rules
+└── .gitattributes               # Git attributes configuration
 ```
 
 ## 🔬 Technical Implementation

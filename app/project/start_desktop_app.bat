@@ -15,7 +15,7 @@ echo    • All chess features in tooltips
 echo.
 
 REM Change to the correct directory
-cd /d "C:\Users\alexa\OneDrive\Desktop\projects\ChessAnalyser\app\project"
+cd /d "C:\Users\alexa\OneDrive\Desktop\projects\IntuiChess\app\project"
 
 REM Start the Vite development server (renderer process)
 echo 📡 Starting development server...
