@@ -10,7 +10,7 @@ Write-Host "✅ Time control sensitivity (blitz vs rapid_classical)" -Foreground
 Write-Host ""
 
 # Change to correct directory
-Set-Location "C:\Users\alexa\OneDrive\Desktop\projects\ChessAnalyser\app\project"
+Set-Location "C:\Users\alexa\OneDrive\Desktop\projects\IntuiChess\app\project"
 
 # Start Vite dev server in background
 Write-Host "📡 Starting development server..." -ForegroundColor Yellow

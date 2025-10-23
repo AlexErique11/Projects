@@ -58,11 +58,11 @@ node node_modules/vite/bin/vite.js
 If the batch file doesn't work, run the manual commands in PowerShell:
 ```powershell
 # Terminal 1
-Set-Location "C:\Users\alexa\OneDrive\Desktop\projects\ChessAnalyser\app\project"
+Set-Location "C:\Users\alexa\OneDrive\Desktop\projects\IntuiChess\app\project"
 node node_modules/vite/bin/vite.js
 
 # Terminal 2 (after first one starts)
-Set-Location "C:\Users\alexa\OneDrive\Desktop\projects\ChessAnalyser\app\project"  
+Set-Location "C:\Users\alexa\OneDrive\Desktop\projects\IntuiChess\app\project"
 node_modules/.bin/electron.cmd .
 ```
 
