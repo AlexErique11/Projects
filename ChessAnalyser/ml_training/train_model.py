@@ -24,7 +24,7 @@ FEATURE_SETS_PATH = os.path.join(SCRIPT_DIR, "feature_sets.json")
 with open(FEATURE_SETS_PATH, "r") as f:
     FEATURE_SETS = json.load(f)
 
-STOCKFISH_PATH = r"C:\Users\alexa\Downloads\stockfish\stockfish-windows-x86-64-avx2.exe"
+STOCKFISH_PATH = os.path.join(SCRIPT_DIR, "..", "stockfish-windows-x86-64-avx2.exe")
 DATA_PATH = os.path.join(SCRIPT_DIR, "data", "lichess_data.zst")
 FEATURES_CSV = os.path.join(SCRIPT_DIR, "features.csv")
 MODEL_DIR = os.path.join(SCRIPT_DIR, "elo_models")

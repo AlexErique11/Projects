@@ -1,11 +1,13 @@
 #feature_extraction.py
+import os
 
 import chess
 import chess.engine
 import statistics
 
 # ===== CONSTANTS =====
-STOCKFISH_PATH = r"C:\Users\alexa\Downloads\stockfish\stockfish-windows-x86-64-avx2.exe"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+STOCKFISH_PATH = os.path.join(SCRIPT_DIR, "..", "stockfish-windows-x86-64-avx2.exe")
 DEPTH = 6
 MATE_SCORE = 100000
 
